@@ -1,6 +1,11 @@
 set(SOURCE_FILES
     "rasterize.cu"
     "rasterize.h"
+    "Particle.h"
+    "RigidBody.h"
+    "RigidBody.cpp"
+    "particleSampling.h"
+    "particleSampling.cu"
     )
 
 cuda_add_library(src
