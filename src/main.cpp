@@ -9,6 +9,9 @@
 #include "main.hpp"
 #include <chrono>
 
+#include "RigidBody.h"
+#include "particleSampling.h"
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -19,24 +22,31 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    obj *mesh = new obj();
+    //obj *mesh = new obj();
 
-    {
-        objLoader loader(argv[1], mesh);
-        mesh->buildBufPoss();
-    }
+    //{
+    //    objLoader loader(argv[1], mesh);
+    //    mesh->buildBufPoss();
+    //}
 
-    frame = 0;
-    seconds = time(NULL);
-    fpstracker = 0;
+    //frame = 0;
+    //seconds = time(NULL);
+    //fpstracker = 0;
 
-    // Launch CUDA/GL
-    if (init(mesh)) {
-        // GLFW main loop
-        mainLoop();
-    }
+    //// Launch CUDA/GL
+    //if (init(mesh)) {
+    //    // GLFW main loop
+    //    mainLoop();
+    //}
+	RigidBody rigid_body;
 
-    return 0;
+	rigid_body.initObj(argv[1]);
+	
+	rigid_body.initParticles(glm::ivec3(10));
+
+	
+	
+	return 0;
 }
 
 void mainLoop() {

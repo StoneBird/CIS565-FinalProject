@@ -13,6 +13,9 @@ class RigidBody
 protected:
 	glm::ivec3 m_resolution;
 
+	glm::vec3 m_min;
+	glm::vec3 m_max;
+
 	//particle
 	vector<Particle> m_particles;
 
@@ -22,6 +25,8 @@ protected:
 public:
 
 	bool initObj(const string & filename);
+
+	void initBoundingBox();
 
 	//Call this after Obj is loaded
 	void initParticles(glm::ivec3 resolution);
