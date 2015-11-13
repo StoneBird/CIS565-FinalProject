@@ -99,6 +99,8 @@ void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods
 
 //Samping test
 
+GLuint vertexbuffer;
+
 GLuint vertexBufferObjID[3];
 GLuint program;
 const char *samplingTest_attributeLocations[] = { "Position"};

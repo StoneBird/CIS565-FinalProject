@@ -39,14 +39,11 @@ int main(int argc, char **argv) {
 
 		// GLFW main loop
 		//mainLoop();
+		
 		samplingTest_Loop();
 	}
 
-
-    
-
 	
-
 
 	
 	return 0;
@@ -57,9 +54,10 @@ int main(int argc, char **argv) {
 
 void samplingTest_Loop()
 {
+
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
-
+		
 		time_t seconds2 = time(NULL);
 
 		frame++;
@@ -78,19 +76,27 @@ void samplingTest_Loop()
 		
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
-		glUseProgram(program);
-
+		//std::cout << glewGetErrorString(glGetError()) << '\n';
+		
+		
+		
+		//glUseProgram(program);
+		
 		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[0]);
+		//glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[0]);
+		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+		
 		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
 		
-
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		
+		glDrawArrays(GL_TRIANGLES, 0, 3);
 		glDisableVertexAttribArray(0);
-		glUseProgram(0);
+		//glUseProgram(0);
 
 		glfwSwapBuffers(window);
+
+		//std::cout << glewGetErrorString(glGetError()) << '\n';
+		
 	}
 	glfwDestroyWindow(window);
 	glfwTerminate();
@@ -111,12 +117,12 @@ bool samplingTest_Init()
 
 	width = 800;
 	height = 800;
-
+	
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
+	
 	window = glfwCreateWindow(width, height, "Particles Simulation", NULL, NULL);
 	if (!window) {
 		fprintf(stderr, "Failed to open GLFW window.\n");
@@ -144,37 +150,54 @@ bool samplingTest_Init()
 
 void samplingTest_InitVAO()
 {
-	GLfloat vertices[] = {
+	//GLfloat vertices[] = {
+	//	-1.0f, -1.0f,
+	//	1.0f, -1.0f,
+	//	1.0f, 1.0f,
+	//	-1.0f, 1.0f,
+	//};
+
+	//GLfloat texcoords[] = {
+	//	1.0f, 1.0f,
+	//	0.0f, 1.0f,
+	//	0.0f, 0.0f,
+	//	1.0f, 0.0f
+	//};
+
+	//GLushort indices[] = { 0, 1, 3, 3, 1, 2 };
+
+	////GLuint vertexBufferObjID[3];
+	//glGenBuffers(3, vertexBufferObjID);
+
+	//glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[0]);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	//glVertexAttribPointer((GLuint)positionLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	//glEnableVertexAttribArray(positionLocation);
+
+	//glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[1]);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(texcoords), texcoords, GL_STATIC_DRAW);
+	//glVertexAttribPointer((GLuint)texcoordsLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	//glEnableVertexAttribArray(texcoordsLocation);
+
+	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertexBufferObjID[2]);
+	//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+	GLfloat g_vertex_buffer_data[] = {
 		-1.0f, -1.0f,
 		1.0f, -1.0f,
 		1.0f, 1.0f,
-		-1.0f, 1.0f,
+		-1.0f, 1.0f
 	};
 
-	GLfloat texcoords[] = {
-		1.0f, 1.0f,
-		0.0f, 1.0f,
-		0.0f, 0.0f,
-		1.0f, 0.0f
-	};
+	GLuint VertexArrayID;
+	glGenVertexArrays(1, &VertexArrayID);
+	glBindVertexArray(VertexArrayID);
 
-	GLushort indices[] = { 0, 1, 3, 3, 1, 2 };
 
-	//GLuint vertexBufferObjID[3];
-	glGenBuffers(3, vertexBufferObjID);
+	glGenBuffers(1, &vertexbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	glVertexAttribPointer((GLuint)positionLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(positionLocation);
-
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[1]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(texcoords), texcoords, GL_STATIC_DRAW);
-	glVertexAttribPointer((GLuint)texcoordsLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(texcoordsLocation);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertexBufferObjID[2]);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 }
 
 
