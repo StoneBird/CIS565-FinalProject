@@ -72,7 +72,7 @@ void keyboard(unsigned char key, int x, int y);
 //-------------------------------
 //----------SETUP STUFF----------
 //-------------------------------
-bool init(obj *mesh);
+bool init();
 void initPBO();
 void initCuda();
 void initTextures();

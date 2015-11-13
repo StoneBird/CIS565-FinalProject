@@ -22,29 +22,31 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    //obj *mesh = new obj();
+	//GL init
+	frame = 0;
+	seconds = time(NULL);
+	fpstracker = 0;
 
-    //{
-    //    objLoader loader(argv[1], mesh);
-    //    mesh->buildBufPoss();
-    //}
+	if (init()) {
+		
+		//test: rigid body sampling
+		RigidBody rigid_body;
 
-    //frame = 0;
-    //seconds = time(NULL);
-    //fpstracker = 0;
+		rigid_body.initObj(argv[1]);
 
-    //// Launch CUDA/GL
-    //if (init(mesh)) {
-    //    // GLFW main loop
-    //    mainLoop();
-    //}
-	RigidBody rigid_body;
+		rigid_body.initParticles(glm::ivec3(10));
 
-	rigid_body.initObj(argv[1]);
+
+		// GLFW main loop
+		mainLoop();
+	}
+
+
+    
+
 	
-	rigid_body.initParticles(glm::ivec3(10));
 
-	
+
 	
 	return 0;
 }
@@ -89,7 +91,7 @@ void runCuda() {
     dptr = NULL;
 
     cudaGLMapBufferObject((void **)&dptr, pbo);
-	rasterize(dptr);
+	//rasterize(dptr);
     cudaGLUnmapBufferObject(pbo);
 
     frame++;
@@ -101,7 +103,9 @@ void runCuda() {
 //----------SETUP STUFF----------
 //-------------------------------
 
-bool init(obj *mesh) {
+bool init() {
+
+	//GL window
     glfwSetErrorCallback(errorCallback);
 
     if (!glfwInit()) {
@@ -110,33 +114,31 @@ bool init(obj *mesh) {
 
     width = 800;
     height = 800;
-    window = glfwCreateWindow(width, height, "CIS 565 Pathtracer", NULL, NULL);
+    window = glfwCreateWindow(width, height, "Particles Simulation", NULL, NULL);
     if (!window) {
+		fprintf(stderr, "Failed to open GLFW window.\n");
         glfwTerminate();
         return false;
     }
-    glfwMakeContextCurrent(window);
+    glfwMakeContextCurrent(window);		//Initialize GLEW
 	glfwSetKeyCallback(window, keyCallback);
 
     // Set up GL context
-    glewExperimental = GL_TRUE;
+    glewExperimental = GL_TRUE;			//Needed in core profile
     if (glewInit() != GLEW_OK) {
+		fprintf(stderr, "Failed to initialize GLEW\n");
         return false;
     }
+
+
+	
 
     initVAO();
     initTextures();
     initCuda();
     initPBO();
 
-    float cbo[] = {
-        0.0, 1.0, 0.0,
-        0.0, 0.0, 1.0,
-        1.0, 0.0, 0.0
-    };
-	rasterizeSetBuffers(mesh->getBufIdxsize(), mesh->getBufIdx(),
-		mesh->getBufPossize() / 3,
-		mesh->getBufPos(), mesh->getBufNor(), mesh->getBufCol());
+    
 
     GLuint passthroughProgram;
     passthroughProgram = initShader();
@@ -169,7 +171,7 @@ void initCuda() {
     // Use device with highest Gflops/s
     cudaGLSetGLDevice(0);
 
-	rasterizeInit(width, height);
+	//rasterizeInit(width, height);
 
     // Clean up on program exit
     atexit(cleanupCuda);
@@ -263,7 +265,9 @@ void deleteTexture(GLuint *tex) {
 }
 
 void shut_down(int return_code) {
-	rasterizeFree();
+	//rasterizeFree();
+	samplingFree();	//TODO:test
+
     cudaDeviceReset();
 #ifdef __APPLE__
     glfwTerminate();

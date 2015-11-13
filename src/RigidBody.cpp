@@ -63,7 +63,8 @@ void RigidBody::initParticles(glm::ivec3 resolution)
 	//test
 	samplingInit(m_shapes.at(0).mesh.indices.size());
 	samplingSetBuffers(m_shapes.at(0).mesh.positions.data(), m_shapes.at(0).mesh.indices.data());
-	samplingFree();
+
+
 	//cuda part return 2 depth 2D textures (float[][])
 
 
