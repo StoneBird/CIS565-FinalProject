@@ -27,18 +27,19 @@ int main(int argc, char **argv) {
 	seconds = time(NULL);
 	fpstracker = 0;
 
-	if (init()) {
+	if (samplingTest_Init()) {
 		
 		//test: rigid body sampling
-		RigidBody rigid_body;
+		//RigidBody rigid_body;
 
-		rigid_body.initObj(argv[1]);
+		//rigid_body.initObj(argv[1]);
 
-		rigid_body.initParticles(glm::ivec3(10));
+		//rigid_body.initParticles(10);
 
 
 		// GLFW main loop
-		mainLoop();
+		//mainLoop();
+		samplingTest_Loop();
 	}
 
 
@@ -51,6 +52,161 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
+
+
+
+void samplingTest_Loop()
+{
+	while (!glfwWindowShouldClose(window)) {
+		glfwPollEvents();
+
+		time_t seconds2 = time(NULL);
+
+		frame++;
+		fpstracker++;
+
+		if (seconds2 - seconds >= 1) {
+
+			fps = fpstracker / (seconds2 - seconds);
+			fpstracker = 0;
+			seconds = seconds2;
+		}
+
+		string title = "CIS565 Final | " + utilityCore::convertIntToString((int)fps) + " FPS";
+		glfwSetWindowTitle(window, title.c_str());
+
+		
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+		glUseProgram(program);
+
+		glEnableVertexAttribArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[0]);
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
+		
+
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		glDisableVertexAttribArray(0);
+		glUseProgram(0);
+
+		glfwSwapBuffers(window);
+	}
+	glfwDestroyWindow(window);
+	glfwTerminate();
+}
+
+
+
+//sampling Test init
+
+bool samplingTest_Init()
+{
+	//GL window
+	glfwSetErrorCallback(errorCallback);
+
+	if (!glfwInit()) {
+		return false;
+	}
+
+	width = 800;
+	height = 800;
+
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+	window = glfwCreateWindow(width, height, "Particles Simulation", NULL, NULL);
+	if (!window) {
+		fprintf(stderr, "Failed to open GLFW window.\n");
+		glfwTerminate();
+		return false;
+	}
+	glfwMakeContextCurrent(window);		//Initialize GLEW
+	glfwSetKeyCallback(window, keyCallback);
+
+	// Set up GL context
+	glewExperimental = GL_TRUE;			//Needed in core profile
+	if (glewInit() != GLEW_OK) {
+		fprintf(stderr, "Failed to initialize GLEW\n");
+		return false;
+	}
+
+	glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+
+	samplingTest_InitVAO();
+
+	samplingTest_InitShaders(program);
+
+	return true;
+}
+
+void samplingTest_InitVAO()
+{
+	GLfloat vertices[] = {
+		-1.0f, -1.0f,
+		1.0f, -1.0f,
+		1.0f, 1.0f,
+		-1.0f, 1.0f,
+	};
+
+	GLfloat texcoords[] = {
+		1.0f, 1.0f,
+		0.0f, 1.0f,
+		0.0f, 0.0f,
+		1.0f, 0.0f
+	};
+
+	GLushort indices[] = { 0, 1, 3, 3, 1, 2 };
+
+	//GLuint vertexBufferObjID[3];
+	glGenBuffers(3, vertexBufferObjID);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glVertexAttribPointer((GLuint)positionLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(positionLocation);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(texcoords), texcoords, GL_STATIC_DRAW);
+	glVertexAttribPointer((GLuint)texcoordsLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(texcoordsLocation);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertexBufferObjID[2]);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+}
+
+
+void samplingTest_InitShaders(GLuint & program) {
+	GLint location;
+
+	program = glslUtility::createProgram(
+		"shaders/test.vert.glsl",
+		"shaders/test.frag.glsl",
+		samplingTest_attributeLocations, 1);
+	glUseProgram(program);
+
+	//if ((location = glGetUniformLocation(program, "u_projMatrix")) != -1) {
+	//	glUniformMatrix4fv(location, 1, GL_FALSE, &projection[0][0]);
+	//}
+	//if ((location = glGetUniformLocation(program, "u_cameraPos")) != -1) {
+	//	glUniform3fv(location, 1, &cameraPosition[0]);
+	//}
+}
+
+///////////////////////////////////////////////////////
+
+
+
+
+//----------------------------------------------
+//---------OLD CUDA rasterizer pipeline---------
+//----------------------------------------------
+
+
+//old rasterizer main loop
+//render a 2d rect, texture is given by cuda
 void mainLoop() {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();

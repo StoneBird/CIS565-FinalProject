@@ -50,9 +50,12 @@ void RigidBody::initBoundingBox()
 
 
 
-void RigidBody::initParticles(glm::ivec3 resolution)
+void RigidBody::initParticles(int x_res)
 {
-	m_resolution = resolution;
+	glm::vec3 tmp = m_max - m_min;
+
+	m_grid_length = tmp.x / ((float)x_res);
+	m_resolution = glm::ceil((tmp) / m_grid_length);
 	
 
 
@@ -68,5 +71,7 @@ void RigidBody::initParticles(glm::ivec3 resolution)
 	//cuda part return 2 depth 2D textures (float[][])
 
 
-	//cpu build m_particles vector due to this 2 depth texture
+	//build m_particles vector due to this 2 depth texture
+
+	//cpy to hst
 }

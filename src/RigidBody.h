@@ -12,6 +12,7 @@ class RigidBody
 {
 protected:
 	glm::ivec3 m_resolution;
+	float m_grid_length;
 
 	glm::vec3 m_min;
 	glm::vec3 m_max;
@@ -29,5 +30,5 @@ public:
 	void initBoundingBox();
 
 	//Call this after Obj is loaded
-	void initParticles(glm::ivec3 resolution);
+	void initParticles(int x_res);
 };

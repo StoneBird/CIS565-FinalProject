@@ -1,7 +1,12 @@
-// GLSL Utility: A utility class for loading GLSL shaders
-// Written by Varun Sampath, Patrick Cozzi, and Karl Li.
-// Copyright (c) 2012 University of Pennsylvania
+/**
+* @file      glslUtility.cpp
+* @brief     A utility namespace for loading GLSL shaders.
+* @authors   Varun Sampath, Patrick Cozzi, Karl Li
+* @date      2012
+* @copyright University of Pennsylvania
+*/
 
+#define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -9,185 +14,255 @@
 #include <cstring>
 #include "glslUtility.hpp"
 
+
+static std::string passthroughVS =
+"	attribute vec4 Position; \n"
+"	attribute vec2 Texcoords; \n"
+"	varying vec2 v_Texcoords; \n"
+"	\n"
+"	void main(void){ \n"
+"		v_Texcoords = Texcoords; \n"
+"		gl_Position = Position; \n"
+"	}";
+static std::string passthroughFS =
+"	varying vec2 v_Texcoords; \n"
+"	\n"
+"	uniform sampler2D u_image; \n"
+"	\n"
+"	void main(void){ \n"
+"		gl_FragColor = texture2D(u_image, v_Texcoords); \n"
+"	}";
+
 using std::ios;
 
 namespace glslUtility {
+	typedef struct {
+		GLint vertex;
+		GLint fragment;
+		GLint geometry;
+	} shaders_t;
 
-// embedded passthrough shaders so that default passthrough shaders don't need to be loaded
-static std::string passthroughVS =
-    "	attribute vec4 Position; \n"
-    "	attribute vec2 Texcoords; \n"
-    "	varying vec2 v_Texcoords; \n"
-    "	\n"
-    "	void main(void){ \n"
-    "		v_Texcoords = Texcoords; \n"
-    "		gl_Position = Position; \n"
-    "	}";
-static std::string passthroughFS =
-    "	varying vec2 v_Texcoords; \n"
-    "	\n"
-    "	uniform sampler2D u_image; \n"
-    "	\n"
-    "	void main(void){ \n"
-    "		gl_FragColor = texture2D(u_image, v_Texcoords); \n"
-    "	}";
+	char* loadFile(const char *fname, GLint &fSize) {
+		// file read based on example in cplusplus.com tutorial
+		std::ifstream file(fname, ios::in | ios::binary | ios::ate);
+		if (file.is_open()) {
+			unsigned int size = (unsigned int)file.tellg();
+			fSize = size;
+			char *memblock = new char[size];
+			file.seekg(0, ios::beg);
+			file.read(memblock, size);
+			file.close();
+			std::cout << "file " << fname << " loaded" << std::endl;
+			return memblock;
+		}
 
-typedef struct {
-    GLuint vertex;
-    GLuint fragment;
-    GLint geometry;
-} shaders_t;
+		std::cout << "Unable to open file " << fname << std::endl;
+		exit(1);
+	}
 
-char *loadFile(const char *fname, GLint &fSize) {
-    // file read based on example in cplusplus.com tutorial
-    std::ifstream file (fname, ios::in | ios::binary | ios::ate);
-    if (file.is_open()) {
-        unsigned int size = (unsigned int)file.tellg();
-        fSize = size;
-        char *memblock = new char [size];
-        file.seekg (0, ios::beg);
-        file.read (memblock, size);
-        file.close();
-        std::cout << "file " << fname << " loaded" << std::endl;
-        return memblock;
-    }
+	// printShaderInfoLog
+	// From OpenGL Shading Language 3rd Edition, p215-216
+	// Display (hopefully) useful error messages if shader fails to compile
+	void printShaderInfoLog(GLint shader) {
+		int infoLogLen = 0;
+		int charsWritten = 0;
+		GLchar *infoLog;
 
-    std::cout << "Unable to open file " << fname << std::endl;
-    exit(EXIT_FAILURE);
-}
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLen);
 
-// printShaderInfoLog
-// From OpenGL Shading Language 3rd Edition, p215-216
-// Display (hopefully) useful error messages if shader fails to compile
-void printShaderInfoLog(GLint shader) {
-    int infoLogLen = 0;
-    int charsWritten = 0;
-    GLchar *infoLog;
+		if (infoLogLen > 1) {
+			infoLog = new GLchar[infoLogLen];
+			// error check for fail to allocate memory omitted
+			glGetShaderInfoLog(shader, infoLogLen, &charsWritten, infoLog);
+			std::cout << "InfoLog:" << std::endl << infoLog << std::endl;
+			delete[] infoLog;
+		}
+	}
 
-    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLen);
+	void printLinkInfoLog(GLint prog) {
+		int infoLogLen = 0;
+		int charsWritten = 0;
+		GLchar *infoLog;
 
-    if (infoLogLen > 1) {
-        infoLog = new GLchar[infoLogLen];
-        // error check for fail to allocate memory omitted
-        glGetShaderInfoLog(shader, infoLogLen, &charsWritten, infoLog);
-        std::cout << "InfoLog:" << std::endl << infoLog << std::endl;
-        delete [] infoLog;
-    }
-}
+		glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &infoLogLen);
 
-void printLinkInfoLog(GLint prog) {
-    int infoLogLen = 0;
-    int charsWritten = 0;
-    GLchar *infoLog;
+		if (infoLogLen > 1) {
+			infoLog = new GLchar[infoLogLen];
+			// error check for fail to allocate memory omitted
+			glGetProgramInfoLog(prog, infoLogLen, &charsWritten, infoLog);
+			std::cout << "InfoLog:" << std::endl << infoLog << std::endl;
+			delete[] infoLog;
+		}
+	}
 
-    glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &infoLogLen);
+	void compileShader(const char *shaderName, const char *shaderSource, GLenum shaderType, GLint &shaders) {
+		GLint s;
+		s = glCreateShader(shaderType);
 
-    if (infoLogLen > 1) {
-        infoLog = new GLchar[infoLogLen];
-        // error check for fail to allocate memory omitted
-        glGetProgramInfoLog(prog, infoLogLen, &charsWritten, infoLog);
-        std::cout << "InfoLog:" << std::endl << infoLog << std::endl;
-        delete [] infoLog;
-    }
-}
+		GLint slen = (unsigned int)std::strlen(shaderSource);
+		char *ss = new char[slen + 1];
+		std::strcpy(ss, shaderSource);
 
-void compileShader(const char *shaderName, const char *shaderSource, GLenum shaderType, GLint &shaders) {
-    GLint s;
-    s = glCreateShader(shaderType);
+		const char *css = ss;
+		glShaderSource(s, 1, &css, &slen);
 
-    GLint slen = (unsigned int)std::strlen(shaderSource);
-    char *ss = new char [slen + 1];
-    std::strcpy(ss, shaderSource);
+		GLint compiled;
+		glCompileShader(s);
+		glGetShaderiv(s, GL_COMPILE_STATUS, &compiled);
+		if (!compiled) {
+			std::cout << shaderName << " did not compile" << std::endl;
+		}
+		printShaderInfoLog(s);
 
-    const char *css = ss;
-    glShaderSource(s, 1, &css, &slen);
+		shaders = s;
 
-    GLint compiled;
-    glCompileShader(s);
-    glGetShaderiv(s, GL_COMPILE_STATUS, &compiled);
-    if (!compiled) {
-        std::cout << shaderName << " did not compile" << std::endl;
-    }
-    printShaderInfoLog(s);
+		delete[] ss;
+	}
 
-    shaders = s;
+	shaders_t loadShaders(const char * vert_path, const char * geom_path, const char * frag_path) {
+		GLint f, g = -1, v;
 
-    delete [] ss;
-}
+		char *vs, *gs, *fs;
 
-shaders_t loadDefaultShaders() {
-    shaders_t out;
+		v = glCreateShader(GL_VERTEX_SHADER);
+		if (geom_path) {
+			g = glCreateShader(GL_GEOMETRY_SHADER);
+		}
+		f = glCreateShader(GL_FRAGMENT_SHADER);
 
-    compileShader("Passthrough Vertex", passthroughVS.c_str(), GL_VERTEX_SHADER, (GLint &)out.vertex);
-    compileShader("Passthrough Fragment", passthroughFS.c_str(), GL_FRAGMENT_SHADER, (GLint &)out.fragment);
+		// load shaders & get length of each
+		GLint vlen;
+		GLint glen;
+		GLint flen;
+		vs = loadFile(vert_path, vlen);
+		if (geom_path) {
+			gs = loadFile(geom_path, glen);
+		}
+		fs = loadFile(frag_path, flen);
 
-    return out;
-}
+		const char * vv = vs;
+		const char * gg = geom_path ? gs : NULL;
+		const char * ff = fs;
 
-shaders_t loadShaders(const char *vert_path, const char *frag_path, const char *geom_path = 0) {
-    shaders_t out;
+		glShaderSource(v, 1, &vv, &vlen);
+		if (geom_path) {
+			glShaderSource(g, 1, &gg, &glen);
+		}
+		glShaderSource(f, 1, &ff, &flen);
 
-    // load shaders & get length of each
-    GLint vlen, flen, glen;
-    char *vertexSource, *fragmentSource, *geometrySource;
-    const char *vv, *ff, *gg;
+		GLint compiled;
 
-    vertexSource = loadFile(vert_path, vlen);
-    vv = vertexSource;
-    compileShader("Vertex", vv, GL_VERTEX_SHADER, (GLint &)out.vertex);
+		glCompileShader(v);
+		glGetShaderiv(v, GL_COMPILE_STATUS, &compiled);
+		if (!compiled) {
+			std::cout << "Vertex shader not compiled." << std::endl;
+		}
+		printShaderInfoLog(v);
 
-    fragmentSource = loadFile(frag_path, flen);
-    ff = fragmentSource;
-    compileShader("Fragment", ff, GL_FRAGMENT_SHADER, (GLint &)out.fragment);
+		if (geom_path) {
+			glCompileShader(g);
+			glGetShaderiv(g, GL_COMPILE_STATUS, &compiled);
+			if (!compiled) {
+				std::cout << "Geometry shader not compiled." << std::endl;
+			}
+			printShaderInfoLog(g);
+		}
 
-    if (geom_path) {
-        geometrySource = loadFile(geom_path, glen);
-        gg = geometrySource;
-        compileShader("Geometry", gg, GL_GEOMETRY_SHADER, (GLint &)out.geometry);
-    }
+		glCompileShader(f);
+		glGetShaderiv(f, GL_COMPILE_STATUS, &compiled);
+		if (!compiled) {
+			std::cout << "Fragment shader not compiled." << std::endl;
+		}
+		printShaderInfoLog(f);
 
-    return out;
-}
+		shaders_t out;
+		out.vertex = v;
+		out.geometry = g;
+		out.fragment = f;
 
-void attachAndLinkProgram( GLuint program, shaders_t shaders) {
-    glAttachShader(program, shaders.vertex);
-    glAttachShader(program, shaders.fragment);
+		delete[] vs; // dont forget to free allocated memory, or else really bad things start happening
+		if (geom_path) {
+			delete[] gs;
+		}
+		delete[] fs; // we allocated this in the loadFile function...
 
-    glLinkProgram(program);
-    GLint linked;
-    glGetProgramiv(program, GL_LINK_STATUS, &linked);
-    if (!linked) {
-        std::cout << "Program did not link." << std::endl;
-    }
-    printLinkInfoLog(program);
-}
+		return out;
+	}
 
-GLuint createDefaultProgram(const char *attributeLocations[], GLuint numberOfLocations) {
-    glslUtility::shaders_t shaders = glslUtility::loadDefaultShaders();
+	void attachAndLinkProgram(GLuint program, shaders_t shaders) {
+		glAttachShader(program, shaders.vertex);
+		if (shaders.geometry >= 0) {
+			glAttachShader(program, shaders.geometry);
+		}
+		glAttachShader(program, shaders.fragment);
 
-    GLuint program = glCreateProgram();
+		glLinkProgram(program);
+		GLint linked;
+		glGetProgramiv(program, GL_LINK_STATUS, &linked);
+		if (!linked) {
+			std::cout << "Program did not link." << std::endl;
+		}
+		printLinkInfoLog(program);
+	}
 
-    for (GLuint i = 0; i < numberOfLocations; ++i) {
-        glBindAttribLocation(program, i, attributeLocations[i]);
-    }
 
-    glslUtility::attachAndLinkProgram(program, shaders);
+	shaders_t loadDefaultShaders() {
+		shaders_t out;
 
-    return program;
-}
+		compileShader("Passthrough Vertex", passthroughVS.c_str(), GL_VERTEX_SHADER, (GLint &)out.vertex);
+		compileShader("Passthrough Fragment", passthroughFS.c_str(), GL_FRAGMENT_SHADER, (GLint &)out.fragment);
 
-GLuint createProgram(const char *vertexShaderPath, const char *fragmentShaderPath,
-                     const char *attributeLocations[], GLuint numberOfLocations) {
-    glslUtility::shaders_t shaders = glslUtility::loadShaders(vertexShaderPath, fragmentShaderPath);
+		return out;
+	}
 
-    GLuint program = glCreateProgram();
 
-    for (GLuint i = 0; i < numberOfLocations; ++i) {
-        glBindAttribLocation(program, i, attributeLocations[i]);
-    }
+	GLuint createDefaultProgram(const char *attributeLocations[], GLuint numberOfLocations) {
+		glslUtility::shaders_t shaders = glslUtility::loadDefaultShaders();
 
-    glslUtility::attachAndLinkProgram(program, shaders);
+		GLuint program = glCreateProgram();
 
-    return program;
-}
+		for (GLuint i = 0; i < numberOfLocations; ++i) {
+			glBindAttribLocation(program, i, attributeLocations[i]);
+		}
+
+		glslUtility::attachAndLinkProgram(program, shaders);
+
+		return program;
+	}
+
+
+	GLuint createProgram(
+		const char *vertexShaderPath,
+		const char *fragmentShaderPath,
+		const char *attributeLocations[], GLuint numberOfLocations) {
+		glslUtility::shaders_t shaders = glslUtility::loadShaders(vertexShaderPath, NULL, fragmentShaderPath);
+
+		GLuint program = glCreateProgram();
+
+		for (GLuint i = 0; i < numberOfLocations; ++i) {
+			glBindAttribLocation(program, i, attributeLocations[i]);
+		}
+
+		glslUtility::attachAndLinkProgram(program, shaders);
+
+		return program;
+	}
+
+	GLuint createProgram(
+		const char *vertexShaderPath,
+		const char *geometryShaderPath,
+		const char *fragmentShaderPath,
+		const char *attributeLocations[], GLuint numberOfLocations) {
+		glslUtility::shaders_t shaders = glslUtility::loadShaders(vertexShaderPath, geometryShaderPath, fragmentShaderPath);
+
+		GLuint program = glCreateProgram();
+
+		for (GLuint i = 0; i < numberOfLocations; ++i) {
+			glBindAttribLocation(program, i, attributeLocations[i]);
+		}
+
+		glslUtility::attachAndLinkProgram(program, shaders);
+
+		return program;
+	}
 }

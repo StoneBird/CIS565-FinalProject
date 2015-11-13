@@ -93,3 +93,20 @@ void deleteTexture(GLuint *tex);
 void mainLoop();
 void errorCallback(int error, const char *description);
 void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
+
+
+
+
+//Samping test
+
+GLuint vertexBufferObjID[3];
+GLuint program;
+const char *samplingTest_attributeLocations[] = { "Position"};
+
+bool samplingTest_Init();
+void samplingTest_Loop();
+
+
+void samplingTest_InitVAO();
+
+void samplingTest_InitShaders(GLuint & program);
