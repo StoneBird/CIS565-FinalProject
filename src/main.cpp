@@ -80,23 +80,24 @@ void samplingTest_Loop()
 		
 		
 		
-		//glUseProgram(program);
-		float tmp[16] = { 1.0, 0.0, 0.0, 0.0,
-			0.0, 1.0, 0.0, 0.0,
-			0.0, 0.0, 1.0, 0.0,
-			0.0, 0.0, 0.0, 1.0 };
-		glUniformMatrix4fv(glGetUniformLocation(program, "u_modelView"), 1, GL_FALSE, tmp);
+		glUseProgram(program);
+		//float tmp[16] = { 1.0, 0.0, 0.0, 0.0,
+		//	0.0, 1.0, 0.0, 0.0,
+		//	0.0, 0.0, 1.0, 0.0,
+		//	0.0, 0.0, 0.0, 1.0 };
+		//glUniformMatrix4fv(glGetUniformLocation(program, "u_modelView"), 1, GL_FALSE, tmp);
+		//glUniformMatrix4fv(glGetUniformLocation(program, "u_projMatrix"), 1, GL_FALSE, tmp);
 		
 		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
-		
+		glPointSize(10);
 		glDrawArrays(GL_POINTS, 0, 4);
 		glDisableVertexAttribArray(0);
 		
 		
-		//glUseProgram(0);
+		glUseProgram(0);
 
 		glfwSwapBuffers(window);
 
