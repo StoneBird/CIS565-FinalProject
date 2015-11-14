@@ -98,16 +98,17 @@ void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods
 
 
 //Samping test
+glm::mat4 projection;
+glm::vec3 cameraPosition(0.0, 0.0, -5.0);
 
 GLuint vertexbuffer;
 
 GLuint vertexBufferObjID[3];
 GLuint program;
-const char *samplingTest_attributeLocations[] = { "Position"};
+const char *samplingTest_attributeLocations[] = { "Position" };
 
 bool samplingTest_Init();
 void samplingTest_Loop();
-
 
 void samplingTest_InitVAO();
 

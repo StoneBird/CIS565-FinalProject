@@ -81,21 +81,25 @@ void samplingTest_Loop()
 		
 		
 		//glUseProgram(program);
+		float tmp[16] = { 1.0, 0.0, 0.0, 0.0,
+			0.0, 1.0, 0.0, 0.0,
+			0.0, 0.0, 1.0, 0.0,
+			0.0, 0.0, 0.0, 1.0 };
+		glUniformMatrix4fv(glGetUniformLocation(program, "u_modelView"), 1, GL_FALSE, tmp);
 		
-		glEnableVertexAttribArray(0);
-		//glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[0]);
 		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+
 		
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
-		
-		
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glDrawArrays(GL_POINTS, 0, 4);
 		glDisableVertexAttribArray(0);
+		
+		
 		//glUseProgram(0);
 
 		glfwSwapBuffers(window);
 
-		//std::cout << glewGetErrorString(glGetError()) << '\n';
 		
 	}
 	glfwDestroyWindow(window);
@@ -117,6 +121,8 @@ bool samplingTest_Init()
 
 	width = 800;
 	height = 800;
+
+	projection = glm::lookAt(cameraPosition, glm::vec3(0.0,0.0,0.0), glm::vec3(0.0, 1.0, 0.0));
 	
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -139,7 +145,7 @@ bool samplingTest_Init()
 		return false;
 	}
 
-	glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	samplingTest_InitVAO();
 
@@ -183,20 +189,22 @@ void samplingTest_InitVAO()
 	//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
 	GLfloat g_vertex_buffer_data[] = {
-		-1.0f, -1.0f,
-		1.0f, -1.0f,
-		1.0f, 1.0f,
-		-1.0f, 1.0f
+		-0.5f, -0.5f, 0.0f,
+		0.5f, -0.5f, -1.0f,
+		0.5f, 0.5f, 0.0f,
+		-0.5f, 0.5f, 0.0f
 	};
 
-	GLuint VertexArrayID;
-	glGenVertexArrays(1, &VertexArrayID);
-	glBindVertexArray(VertexArrayID);
+	GLuint VertexArrayID[1];
+	glGenVertexArrays(1, VertexArrayID);
+	glBindVertexArray(VertexArrayID[0]);
 
 
 	glGenBuffers(1, &vertexbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 
 }
 
@@ -205,17 +213,17 @@ void samplingTest_InitShaders(GLuint & program) {
 	GLint location;
 
 	program = glslUtility::createProgram(
-		"shaders/test.vert.glsl",
-		"shaders/test.frag.glsl",
+		"shaders/particle.vert.glsl",
+		"shaders/particle_test.frag.glsl",
 		samplingTest_attributeLocations, 1);
 	glUseProgram(program);
 
-	//if ((location = glGetUniformLocation(program, "u_projMatrix")) != -1) {
-	//	glUniformMatrix4fv(location, 1, GL_FALSE, &projection[0][0]);
-	//}
-	//if ((location = glGetUniformLocation(program, "u_cameraPos")) != -1) {
-	//	glUniform3fv(location, 1, &cameraPosition[0]);
-	//}
+	if ((location = glGetUniformLocation(program, "u_projMatrix")) != -1) {
+		glUniformMatrix4fv(location, 1, GL_FALSE, &projection[0][0]);
+	}
+	if ((location = glGetUniformLocation(program, "u_cameraPos")) != -1) {
+		glUniform3fv(location, 1, &cameraPosition[0]);
+	}
 }
 
 ///////////////////////////////////////////////////////

@@ -1,6 +1,6 @@
 #version 330
 
-in vec2 Position;
+layout(location=0) in vec2 Position;
 
 void main() {
     gl_Position.xy = Position;
