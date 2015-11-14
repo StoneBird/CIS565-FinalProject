@@ -94,18 +94,37 @@ void mainLoop();
 void errorCallback(int error, const char *description);
 void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
+//Mouse Control
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+void mouseMotionCallback(GLFWwindow* window, double xpos, double ypos);
+void mouseWheelCallback(GLFWwindow* window, double xoffset, double yoffset);
+
+
+void updateCamera();
+float scale = 1.0f;
+float x_trans = 0.0f, y_trans = 0.0f, z_trans = 1.0f;
+float x_angle = 0.0f, y_angle = 0.0f;
+
 
 
 
 //Samping test
-glm::mat4 projection;
-glm::vec3 cameraPosition(0.0, 0.0, -5.0);
+glm::mat4 model = glm::scale(glm::vec3(scale, scale, scale));
+glm::mat4 view;
 
+glm::mat4 projection;
+glm::vec3 cameraPosition(x_trans, y_trans, z_trans);
+
+
+int num_points;
 GLuint vertexbuffer;
 
 GLuint vertexBufferObjID[3];
 GLuint program;
 const char *samplingTest_attributeLocations[] = { "Position" };
+
+
+
 
 bool samplingTest_Init();
 void samplingTest_Loop();

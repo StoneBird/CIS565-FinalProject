@@ -73,11 +73,15 @@ void samplingTest_Loop()
 		string title = "CIS565 Final | " + utilityCore::convertIntToString((int)fps) + " FPS";
 		glfwSetWindowTitle(window, title.c_str());
 
+
+		//update camera
+		updateCamera();
+		
+
 		
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		//std::cout << glewGetErrorString(glGetError()) << '\n';
-		
 		
 		
 		glUseProgram(program);
@@ -85,23 +89,27 @@ void samplingTest_Loop()
 		//	0.0, 1.0, 0.0, 0.0,
 		//	0.0, 0.0, 1.0, 0.0,
 		//	0.0, 0.0, 0.0, 1.0 };
-		//glUniformMatrix4fv(glGetUniformLocation(program, "u_modelView"), 1, GL_FALSE, tmp);
-		//glUniformMatrix4fv(glGetUniformLocation(program, "u_projMatrix"), 1, GL_FALSE, tmp);
-		
+
+		glm::vec2 screenSize(width, height);
+		glm::mat4 modelView = view * model;
+		glUniformMatrix4fv(glGetUniformLocation(program, "u_modelView"), 1, GL_FALSE, &modelView[0][0]);
+		glUniformMatrix4fv(glGetUniformLocation(program, "u_projMatrix"), 1, GL_FALSE, &projection[0][0]);
+		glUniform2fv(glGetUniformLocation(program, "u_screenSize"), 1, &screenSize[0]);
+		glUniform1f(glGetUniformLocation(program, "u_spriteSize"), 0.1*scale);
+
+
 		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
-		glPointSize(10);
-		glDrawArrays(GL_POINTS, 0, 4);
+		//glPointSize(10);
+		glDrawArrays(GL_POINTS, 0, num_points);
 		glDisableVertexAttribArray(0);
-		
 		
 		glUseProgram(0);
 
 		glfwSwapBuffers(window);
 
-		
 	}
 	glfwDestroyWindow(window);
 	glfwTerminate();
@@ -123,7 +131,7 @@ bool samplingTest_Init()
 	width = 800;
 	height = 800;
 
-	projection = glm::lookAt(cameraPosition, glm::vec3(0.0,0.0,0.0), glm::vec3(0.0, 1.0, 0.0));
+	
 	
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -138,6 +146,10 @@ bool samplingTest_Init()
 	}
 	glfwMakeContextCurrent(window);		//Initialize GLEW
 	glfwSetKeyCallback(window, keyCallback);
+	//MY Mouse Control
+	glfwSetMouseButtonCallback(window, mouseButtonCallback);
+	glfwSetCursorPosCallback(window, mouseMotionCallback);
+	glfwSetScrollCallback(window, mouseWheelCallback);
 
 	// Set up GL context
 	glewExperimental = GL_TRUE;			//Needed in core profile
@@ -189,11 +201,40 @@ void samplingTest_InitVAO()
 	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertexBufferObjID[2]);
 	//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
+
+
+	//GLfloat g_vertex_buffer_data[] = {
+	//	-0.5f, -0.5f, 0.0f,
+	//	0.5f, -0.5f, -1.0f,
+	//	0.5f, 0.5f, 0.0f,
+	//	-0.5f, 0.5f, 1.0f
+	//};
+
 	GLfloat g_vertex_buffer_data[] = {
-		-0.5f, -0.5f, 0.0f,
+		-0.5f, 0.0f, 1.0f,
+		-0.2f, 0.0f, 1.0f,
+		-0.7f, 0.0f, 1.0f,
+		0.1f, 0.0f, 1.0f,
+		0.3f, 0.0f, 1.0f,
+		0.6f, 0.0f, 1.0f,
+
+		-0.5f, 0.0f, 0.0f,
+		-0.2f, 0.0f, 0.0f,
+		-0.7f, 0.0f, 0.0f,
+		0.1f, 0.0f, 0.0f,
+		0.3f, 0.0f, 0.0f,
+		0.6f, 0.0f, 0.0f,
+
+		-0.5f, 0.0f, 0.5f,
+		-0.2f, 0.0f, 0.5f,
+		-0.7f, 0.0f, 0.5f,
+		0.1f, 0.0f, 0.5f,
+		0.3f, 0.0f, 0.5f,
+		0.6f, 0.0f, 0.5f,
+
 		0.5f, -0.5f, -1.0f,
 		0.5f, 0.5f, 0.0f,
-		-0.5f, 0.5f, 0.0f
+		-0.5f, 0.5f, 1.0f
 	};
 
 	GLuint VertexArrayID[1];
@@ -206,7 +247,7 @@ void samplingTest_InitVAO()
 	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-
+	num_points = sizeof(g_vertex_buffer_data)/3/4;
 }
 
 
@@ -214,8 +255,8 @@ void samplingTest_InitShaders(GLuint & program) {
 	GLint location;
 
 	program = glslUtility::createProgram(
-		"shaders/particle.vert.glsl",
-		"shaders/particle_test.frag.glsl",
+		"../shaders/particle.vert.glsl",
+		"../shaders/particle_test.frag.glsl",
 		samplingTest_attributeLocations, 1);
 	glUseProgram(program);
 
@@ -225,9 +266,22 @@ void samplingTest_InitShaders(GLuint & program) {
 	if ((location = glGetUniformLocation(program, "u_cameraPos")) != -1) {
 		glUniform3fv(location, 1, &cameraPosition[0]);
 	}
+
+	glEnable(GL_PROGRAM_POINT_SIZE);
 }
 
 ///////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -479,4 +533,92 @@ void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods
 			break;
 		}
 	}
+}
+
+
+
+
+
+enum ControlState { NONE = 0, ROTATE, TRANSLATE };
+ControlState mouseState = NONE;
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+	if (action == GLFW_PRESS)
+	{
+		if (button == GLFW_MOUSE_BUTTON_LEFT)
+		{
+			mouseState = ROTATE;
+		}
+		else if (button == GLFW_MOUSE_BUTTON_RIGHT)
+		{
+			mouseState = TRANSLATE;
+		}
+
+	}
+	else if (action == GLFW_RELEASE)
+	{
+		mouseState = NONE;
+	}
+	//printf("%d\n", mouseState);
+}
+
+double lastx = (double)width / 2;
+double lasty = (double)height / 2;
+void mouseMotionCallback(GLFWwindow* window, double xpos, double ypos)
+{
+	const double s_r = 0.01;
+	const double s_t = 0.01;
+
+	double diffx = xpos - lastx;
+	double diffy = ypos - lasty;
+	lastx = xpos;
+	lasty = ypos;
+
+	if (mouseState == ROTATE)
+	{
+		//rotate
+		x_angle += (float)s_r * diffy;
+		y_angle += (float)s_r * diffx;
+		//x_angle = (float)s_r * diffy;
+		//y_angle = (float)s_r * diffx;
+	}
+	else if (mouseState == TRANSLATE)
+	{
+		//translate
+		x_trans += (float)(s_t * diffx);
+		y_trans += (float)(-s_t * diffy);
+	}
+}
+
+void mouseWheelCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	const double s_s = 0.02;
+
+	z_trans += -s_s * yoffset;
+
+	//cout << x_trans<<","<<y_trans<<"," <<z_trans << endl;
+	cout << cameraPosition.x << "," << cameraPosition.y << "," << cameraPosition.z << endl;
+	cout << cameraPosition.length()<<endl;
+}
+
+
+void updateCamera()
+{
+	//tmp
+	glm::mat4 R =  glm::rotate(x_angle, glm::vec3(1.0f, 0.0f, 0.0f))
+		* glm::rotate(y_angle, glm::vec3(0.0f, 1.0f, 0.0f));
+
+	glm::mat4 T = glm::translate(glm::vec3(x_trans, y_trans, z_trans));
+
+	glm::vec4 tmp = R * T * glm::vec4(0.0, 0.0, 0.0, 1.0);
+	tmp /= tmp.w;
+	cameraPosition = glm::vec3(tmp);
+
+	view = glm::translate(glm::vec3(-x_trans, -y_trans, -z_trans)) * glm::transpose(R);
+
+	projection = glm::lookAt(cameraPosition, glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+
+	//projection = glm::frustum(-5, 5, -5, 5, -4, 10);
+
+	//cout << z_trans << endl;
 }
