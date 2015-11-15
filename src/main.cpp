@@ -162,6 +162,7 @@ bool samplingTest_Init()
 		return false;
 	}
 
+
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	return true;
