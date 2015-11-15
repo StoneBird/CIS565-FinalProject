@@ -11,3 +11,9 @@ struct Particle
 
 	int phase;		//group
 };
+
+struct ParticleWrapper
+{
+	glm::vec3 x;
+	bool isEmpty;
+};
