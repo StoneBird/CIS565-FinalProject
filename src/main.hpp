@@ -132,3 +132,13 @@ void samplingTest_Loop();
 void samplingTest_InitVAO();
 
 void samplingTest_InitShaders(GLuint & program);
+
+
+//program location
+GLuint u_modelView;
+GLuint u_projMatrix;
+GLuint u_screenSize;
+GLuint u_spriteSize;
+
+GLuint u_color;
+GLuint u_lightDir;

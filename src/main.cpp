@@ -80,6 +80,7 @@ void samplingTest_Loop()
 
 		
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		//glClear(GL_COLOR_BUFFER_BIT);
 
 		//std::cout << glewGetErrorString(glGetError()) << '\n';
 		
@@ -92,11 +93,13 @@ void samplingTest_Loop()
 
 		glm::vec2 screenSize(width, height);
 		glm::mat4 modelView = view * model;
-		glUniformMatrix4fv(glGetUniformLocation(program, "u_modelView"), 1, GL_FALSE, &modelView[0][0]);
-		glUniformMatrix4fv(glGetUniformLocation(program, "u_projMatrix"), 1, GL_FALSE, &projection[0][0]);
-		glUniform2fv(glGetUniformLocation(program, "u_screenSize"), 1, &screenSize[0]);
-		glUniform1f(glGetUniformLocation(program, "u_spriteSize"), 0.1*scale);
+		glUniformMatrix4fv(u_modelView, 1, GL_FALSE, &modelView[0][0]);
+		glUniformMatrix4fv(u_projMatrix, 1, GL_FALSE, &projection[0][0]);
+		glUniform2fv(u_screenSize, 1, &screenSize[0]);
+		glUniform1f(u_spriteSize, 0.1*scale);
 
+		glUniform3f(u_color, 1.0, 1.0, 0.0);
+		glUniform3f(u_lightDir, 0.0, 0.0, 1.0);
 
 		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
 		glEnableVertexAttribArray(0);
@@ -256,18 +259,30 @@ void samplingTest_InitShaders(GLuint & program) {
 
 	program = glslUtility::createProgram(
 		"../shaders/particle.vert.glsl",
-		"../shaders/particle_test.frag.glsl",
+		"../shaders/particle.frag.glsl",
 		samplingTest_attributeLocations, 1);
 	glUseProgram(program);
 
-	if ((location = glGetUniformLocation(program, "u_projMatrix")) != -1) {
-		glUniformMatrix4fv(location, 1, GL_FALSE, &projection[0][0]);
-	}
-	if ((location = glGetUniformLocation(program, "u_cameraPos")) != -1) {
-		glUniform3fv(location, 1, &cameraPosition[0]);
-	}
+	//if ((location = glGetUniformLocation(program, "u_projMatrix")) != -1) {
+	//	glUniformMatrix4fv(location, 1, GL_FALSE, &projection[0][0]);
+	//}
+	//if ((location = glGetUniformLocation(program, "u_cameraPos")) != -1) {
+	//	glUniform3fv(location, 1, &cameraPosition[0]);
+	//}
 
 	glEnable(GL_PROGRAM_POINT_SIZE);
+
+
+	//vertex shader
+	u_modelView = glGetUniformLocation(program, "u_modelView");
+	u_projMatrix = glGetUniformLocation(program, "u_projMatrix");
+	u_screenSize = glGetUniformLocation(program, "u_screenSize");
+	u_spriteSize = glGetUniformLocation(program, "u_spriteSize");
+
+
+	//fragment shader
+	u_color = glGetUniformLocation(program, "u_color");
+	u_lightDir = glGetUniformLocation(program, "u_lightDir");
 }
 
 ///////////////////////////////////////////////////////
