@@ -161,6 +161,7 @@ bool samplingTest_Init()
 		return false;
 	}
 
+
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	samplingTest_InitVAO();
@@ -271,7 +272,7 @@ void samplingTest_InitShaders(GLuint & program) {
 	//}
 
 	glEnable(GL_PROGRAM_POINT_SIZE);
-
+	glEnable(GL_DEPTH_TEST);
 
 	//vertex shader
 	u_modelView = glGetUniformLocation(program, "u_modelView");
