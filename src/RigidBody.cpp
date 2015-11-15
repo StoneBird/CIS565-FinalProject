@@ -52,26 +52,26 @@ void RigidBody::initBoundingBox()
 
 void RigidBody::initParticles(int x_res)
 {
+	// Per object bounding box
 	glm::vec3 tmp = m_max - m_min;
 
+	// Use resolution on one axis to compute voxel grid side length
+	// Use side length to find # of particles on the other 2 axes
 	m_grid_length = tmp.x / ((float)x_res);
 	m_resolution = glm::ceil((tmp) / m_grid_length);
-	
 
-
-
-	//TODO
-	//transfer model data from host to device by
-	//Calling cuda functions
-	//test
-	samplingInit(m_shapes.at(0).mesh.indices.size());
+	// Transfer model data from host to device; init properties
+	// --> Per object particle count
+	samplingInit(m_shapes.at(0).mesh.indices.size(), m_resolution, m_grid_length);
 	samplingSetBuffers(m_shapes.at(0).mesh.positions.data(), m_shapes.at(0).mesh.indices.data());
 
+	// --> Per object depth peeling
+	// --> Stream compaction
+	// --> Copy array of Particle to host
+	sampleParticles(m_particles, m_particle_pos);
 
-	//cuda part return 2 depth 2D textures (float[][])
-
-
-	//build m_particles vector due to this 2 depth texture
-
-	//cpy to hst
+	/*
+	printf("%f %f %f\n", m_particles[0].x.x, m_particles[0].x.y, m_particles[0].x.z);
+	printf("%f %f %f\n", m_particle_pos[0], m_particle_pos[1], m_particle_pos[2]);
+	*/
 }

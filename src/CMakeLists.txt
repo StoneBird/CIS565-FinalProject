@@ -6,6 +6,7 @@ set(SOURCE_FILES
     "RigidBody.cpp"
     "particleSampling.h"
     "particleSampling.cu"
+	"rasterizeTools.h"
     )
 
 cuda_add_library(src
