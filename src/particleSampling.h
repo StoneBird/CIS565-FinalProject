@@ -4,6 +4,7 @@
 #include <util/utilityCore.hpp>
 #include "util/tiny_obj_loader.h"
 #include "Particle.h"
+#include "rasterizeTools.h"
 
 //CUDA-accelerated particle sampling of rigid body obj models
 

@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
 
 		// Rigid body sampling
 		rigid_body.initObj(argv[1]);
-		rigid_body.initParticles(10);
+		rigid_body.initParticles(30);
 
 		samplingTest_InitVAO();
 		samplingTest_InitShaders(program);
@@ -106,7 +106,7 @@ void samplingTest_Loop()
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
-		//glPointSize(10);
+		//glPointSize(30);
 		glDrawArrays(GL_POINTS, 0, num_points);
 		glDisableVertexAttribArray(0);
 		

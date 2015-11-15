@@ -15,25 +15,6 @@
 #include "particleSampling.h"
 #include <vector>
 
-struct is_empty{
-	__host__ __device__
-		bool operator()(const ParticleWrapper &p)
-	{
-		return p.isEmpty;
-	}
-};
-
-struct Triangle
-{
-	glm::vec3 v[3];
-};
-
-struct RayPeel
-{
-	glm::vec2 peel;
-};
-
-
 static glm::ivec3 resolution = glm::ivec3(10);
 static int num_particles;
 static int num_rays;
@@ -136,13 +117,39 @@ void coordRemap(int &x, int &y, const glm::vec3 resolution){
 }
 
 __global__
-void intersect(RayPeel * rp, Triangle * tri, const glm::vec3 resolution, const float diameter, const glm::vec3 ray){
+void intersect(RayPeel * rp, Triangle * tri, const int tri_count, const glm::vec3 resolution, const float diameter, const glm::vec3 ray){
 	int x = blockDim.x * blockIdx.x + threadIdx.x;
 	int y = blockDim.y * blockIdx.y + threadIdx.y;
 	int idx = x + y*resolution.x;
 	if (x < resolution.x && y < resolution.y){
 		coordRemap(x, y, resolution);
-		rp[idx].peel = glm::vec2(-resolution.z / 2, resolution.z / 2);
+		bool hasIntersect = false;
+		float xReal = x*diameter, yReal = y*diameter;
+		float minZ = resolution.z / 2 * diameter, maxZ = -resolution.z / 2*diameter;
+		for (int t = 0; t < tri_count; t++){
+			AABB tbox = getAABBForTriangle(tri[t]);
+			if (
+				xReal >= tbox.min.x && xReal <= tbox.max.x &&
+				yReal >= tbox.min.y && yReal <= tbox.max.y
+				){
+				glm::vec3 bcc = calculateBarycentricCoordinate(tri[t], glm::vec2(xReal, yReal));
+				if (isBarycentricCoordInBounds(bcc)){
+					hasIntersect = true;
+					float z = getZAtCoordinate(bcc, tri[t]);
+					if (z < minZ){
+						minZ = z;
+					}
+					if (z > maxZ){
+						maxZ = z;
+					}
+				}
+			}
+		}
+		glm::vec2 peel = glm::vec2(minZ, maxZ);
+		if (!hasIntersect){
+			peel = glm::vec2(0.0f);
+		}
+		rp[idx].peel = ceil(peel/diameter);
 	}
 }
 
@@ -156,8 +163,11 @@ void fillPeel(ParticleWrapper * p_out, RayPeel * rp, const glm::vec3 resolution,
 		int depth = abs(p.y - p.x);
 		coordRemap(x, y, resolution);
 		for (int z = 0; z < depth; z++){
-			p_out[idx*(int)resolution.z + z].x = glm::vec3(x, y, z)*diameter;
+			p_out[idx*(int)resolution.z + z].x = glm::vec3(x, y, z+p.x)*diameter;
 			p_out[idx*(int)resolution.z + z].isEmpty = false;
+		}
+		for (int z = depth; z < resolution.z; z++){
+			p_out[idx*(int)resolution.z + z].isEmpty = true;
 		}
 	}
 }
@@ -188,7 +198,7 @@ void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos){
 
 	// Depth peeling
 		// Intersection test
-	intersect << <blocksPerGrid, blockSize >> >(dev_peels, dev_triangles, resolution, voxel_diam, ray);
+	intersect << <blocksPerGrid, blockSize >> >(dev_peels, dev_triangles, num_triangles, resolution, voxel_diam, ray);
 	checkCUDAError("Intersection");
 		// Fill ray segment
 	fillPeel << <blocksPerGrid, blockSize >> >(dev_particles, dev_peels, resolution, voxel_diam);
@@ -206,7 +216,9 @@ void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos){
 	cudaMalloc(&dev_particle_pos_cache, newSize * 3 * sizeof(float));
 	checkCUDAError("Malloc 2");
 
-	translateParticle << <newSize, 1>> >(dev_particle_pos_cache, dev_particle_cache, dev_particles, newSize);
+	const int blockSizer = 192;
+	dim3 blockCountr((newSize + blockSizer - 1) / blockSizer);
+	translateParticle << <blockCountr, blockSizer >> >(dev_particle_pos_cache, dev_particle_cache, dev_particles, newSize);
 	checkCUDAError("Wrapper translation");
 
 	// Copy to host
