@@ -25,6 +25,8 @@ protected:
 	vector<tinyobj::material_t> m_materials;
 public:
 
+	vector<float> m_particle_pos;
+
 	bool initObj(const string & filename);
 
 	void initBoundingBox();

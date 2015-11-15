@@ -11,9 +11,9 @@
 
 #include <cuda_runtime.h>
 #include <util/checkCUDAError.h>
-#include <vector>
 #include <glm/gtx/transform.hpp>
 #include "particleSampling.h"
+#include <vector>
 
 struct is_empty{
 	__host__ __device__
@@ -48,8 +48,8 @@ static int num_triangles;
 static float * dev_positions;
 static unsigned int* dev_indices;
 static Triangle * dev_triangles;
-static ParticleWrapper * dev_particles;
 static Particle * dev_particle_cache;
+static float * dev_particle_pos_cache;
 static RayPeel * dev_peels;
 
 void samplingInit(int num_v, glm::vec3 m_resolution, float m_grid_length)
@@ -71,7 +71,7 @@ void samplingInit(int num_v, glm::vec3 m_resolution, float m_grid_length)
 	cudaMalloc(&dev_indices, num_vertices * sizeof(unsigned int));
 	
 	cudaFree(dev_triangles);
-	cudaMalloc(&dev_indices, num_triangles * sizeof(Triangle));
+	cudaMalloc(&dev_triangles, num_triangles * sizeof(Triangle));
 
 	cudaFree(dev_peels);
 	cudaMalloc(&dev_peels, num_rays * sizeof(RayPeel));
@@ -86,10 +86,13 @@ void kernTriangleAssembly(int N,Triangle * triangles, float * position, unsigned
 
 	if (threadId < N)
 	{
-		int v_id = indices[threadId];
-		int tri_id = threadId / 3;
-		int i = threadId - 3 * tri_id;
-		triangles[tri_id].v[i] = glm::vec3(position[3 * v_id], position[3 * v_id + 1], position[3 * v_id + 2]);
+		int v1_id = threadId * 3;
+		unsigned int p1_id = indices[v1_id] * 3;
+		unsigned int p2_id = indices[v1_id + 1] * 3;
+		unsigned int p3_id = indices[v1_id + 2] * 3;
+		triangles[threadId].v[0] = glm::vec3(position[p1_id], position[p1_id + 1], position[p1_id + 2]);
+		triangles[threadId].v[1] = glm::vec3(position[p2_id], position[p2_id + 1], position[p2_id + 2]);
+		triangles[threadId].v[2] = glm::vec3(position[p3_id], position[p3_id + 1], position[p3_id + 2]);
 	}
 }
 
@@ -97,12 +100,14 @@ void samplingSetBuffers(float * hst_positions, unsigned int * hst_indices)
 {
 	cudaMemcpy(dev_positions, hst_positions, num_vertices * 3 * sizeof(float), cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_indices, hst_indices, num_vertices * sizeof(unsigned int), cudaMemcpyHostToDevice);
+	checkCUDAError("Obj index copy");
 	
 	//triangle assembly
 	const int blockSize = 192;
 	dim3 blockCount((num_vertices + blockSize - 1) / blockSize);
 
-	kernTriangleAssembly << <blockCount, blockSize >> >(num_vertices,dev_triangles, dev_positions, dev_indices);
+	kernTriangleAssembly << <blockCount, blockSize >> >(num_triangles, dev_triangles, dev_positions, dev_indices);
+	checkCUDAError("Obj assemble");
 }
 
 void samplingFree()
@@ -133,39 +138,44 @@ void coordRemap(int &x, int &y, const glm::vec3 resolution){
 __global__
 void intersect(RayPeel * rp, Triangle * tri, const glm::vec3 resolution, const float diameter, const glm::vec3 ray){
 	int x = blockDim.x * blockIdx.x + threadIdx.x;
-	int y = blockDim.x * blockIdx.x + threadIdx.x;
+	int y = blockDim.y * blockIdx.y + threadIdx.y;
 	int idx = x + y*resolution.x;
 	if (x < resolution.x && y < resolution.y){
 		coordRemap(x, y, resolution);
-		rp[idx].peel = glm::vec2(-resolution.z/2, resolution.z/2)*diameter;
+		rp[idx].peel = glm::vec2(-resolution.z / 2, resolution.z / 2);
 	}
 }
 
 __global__
 void fillPeel(ParticleWrapper * p_out, RayPeel * rp, const glm::vec3 resolution, const float diameter){
 	int x = blockDim.x * blockIdx.x + threadIdx.x;
-	int y = blockDim.x * blockIdx.x + threadIdx.x;
+	int y = blockDim.y * blockIdx.y + threadIdx.y;
 	int idx = x + y*resolution.x;
 	if (x < resolution.x && y < resolution.y){
 		glm::vec2 p = rp[idx].peel;
 		int depth = abs(p.y - p.x);
 		coordRemap(x, y, resolution);
 		for (int z = 0; z < depth; z++){
-			p_out[idx + z].x = glm::vec3(x, y, z)*diameter;
-			p_out[idx + z].isEmpty = false;
+			p_out[idx*(int)resolution.z + z].x = glm::vec3(x, y, z)*diameter;
+			p_out[idx*(int)resolution.z + z].isEmpty = false;
 		}
 	}
 }
 
 __global__
-void translateParticle(Particle *p_out, ParticleWrapper *p_in, int size){
+void translateParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, int size){
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadId < size){
-		p_out[threadId].x = p_in[threadId].x;
+		glm::vec3 pos = p_in[threadId].x;
+		int pIdx = threadId * 3;
+		p_out[threadId].x = pos;
+		pos_out[pIdx] = pos.x;
+		pos_out[pIdx + 1] = pos.y;
+		pos_out[pIdx + 2] = pos.z;
 	}
 }
 
-int sampleParticles(Particle * p_out){
+void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos){
 	const int blockSideLength = 8;
 	const dim3 blockSize(blockSideLength, blockSideLength);
 	dim3 blocksPerGrid(
@@ -173,10 +183,9 @@ int sampleParticles(Particle * p_out){
 		(resolution.y + blockSize.y - 1) / blockSize.y);
 
 	thrust::device_vector<ParticleWrapper> dev_grid(num_particles);
-	dev_particles = thrust::raw_pointer_cast(&dev_grid[0]);
+	ParticleWrapper * dev_particles = thrust::raw_pointer_cast(&dev_grid[0]);
+	checkCUDAError("Malloc thrust");
 
-	cudaMalloc(&dev_particle_cache, num_particles * sizeof(Particle));
-	
 	// Depth peeling
 		// Intersection test
 	intersect << <blocksPerGrid, blockSize >> >(dev_peels, dev_triangles, resolution, voxel_diam, ray);
@@ -184,19 +193,39 @@ int sampleParticles(Particle * p_out){
 		// Fill ray segment
 	fillPeel << <blocksPerGrid, blockSize >> >(dev_particles, dev_peels, resolution, voxel_diam);
 	checkCUDAError("Peel filling");
+
 	// Stream compaction
 	thrust::detail::normal_iterator<thrust::device_ptr<ParticleWrapper>> newGridEnd = thrust::remove_if(dev_grid.begin(), dev_grid.end(), is_empty());
 	checkCUDAError("Compaction");
 	dev_grid.erase(newGridEnd, dev_grid.end());
 	int newSize = dev_grid.size();
-	// Write to array of Particle
-	translateParticle << <newSize, 1>> >(dev_particle_cache, dev_particles, newSize);
-	checkCUDAError("Wrapper translation");
-	// Copy to host
-	cudaMemcpy(p_out, dev_particle_cache, newSize * sizeof(Particle), cudaMemcpyDeviceToHost);
-	checkCUDAError("Memcpy");
-	cudaFree(dev_particle_cache);
 
-	// Return final array length
-	return newSize;
+	// Write to array of Particle
+	cudaMalloc(&dev_particle_cache, newSize * sizeof(Particle));
+	checkCUDAError("Malloc 1");
+	cudaMalloc(&dev_particle_pos_cache, newSize * 3 * sizeof(float));
+	checkCUDAError("Malloc 2");
+
+	translateParticle << <newSize, 1>> >(dev_particle_pos_cache, dev_particle_cache, dev_particles, newSize);
+	checkCUDAError("Wrapper translation");
+
+	// Copy to host
+	Particle *p_out = (Particle *)malloc(newSize * sizeof(Particle));
+	float *pos_out = (float *)malloc(newSize * 3 * sizeof(float));
+
+	cudaMemcpy(p_out, dev_particle_cache, newSize * sizeof(Particle), cudaMemcpyDeviceToHost);
+	checkCUDAError("Memcpy particle");
+	cudaMemcpy(pos_out, dev_particle_pos_cache, newSize * 3 * sizeof(float), cudaMemcpyDeviceToHost);
+	checkCUDAError("Memcpy particle pos");
+
+	hst_p.resize(newSize);
+	hst_pos.resize(newSize * 3);
+
+	std::copy(p_out, p_out + newSize, hst_p.begin());
+	std::copy(pos_out, pos_out + newSize*3, hst_pos.begin());
+
+	cudaFree(dev_particle_cache);
+	cudaFree(dev_particle_pos_cache);
+	free(p_out);
+	free(pos_out);
 }

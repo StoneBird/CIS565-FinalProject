@@ -68,6 +68,10 @@ void RigidBody::initParticles(int x_res)
 	// --> Per object depth peeling
 	// --> Stream compaction
 	// --> Copy array of Particle to host
-	int m_particle_count = sampleParticles(m_particles.data());
-	m_particles.resize(m_particle_count);
+	sampleParticles(m_particles, m_particle_pos);
+
+	/*
+	printf("%f %f %f\n", m_particles[0].x.x, m_particles[0].x.y, m_particles[0].x.z);
+	printf("%f %f %f\n", m_particle_pos[0], m_particle_pos[1], m_particle_pos[2]);
+	*/
 }

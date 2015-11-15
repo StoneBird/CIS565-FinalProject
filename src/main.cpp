@@ -16,6 +16,8 @@
 //-------------MAIN--------------
 //-------------------------------
 
+RigidBody rigid_body;
+
 int main(int argc, char **argv) {
     if (argc != 2) {
         cout << "Usage: [obj file]" << endl;
@@ -28,14 +30,13 @@ int main(int argc, char **argv) {
 	fpstracker = 0;
 
 	if (samplingTest_Init()) {
-		
-		//test: rigid body sampling
-		//RigidBody rigid_body;
 
-		//rigid_body.initObj(argv[1]);
+		// Rigid body sampling
+		rigid_body.initObj(argv[1]);
+		rigid_body.initParticles(10);
 
-		//rigid_body.initParticles(10);
-
+		samplingTest_InitVAO();
+		samplingTest_InitShaders(program);
 
 		// GLFW main loop
 		//mainLoop();
@@ -163,10 +164,6 @@ bool samplingTest_Init()
 
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
-	samplingTest_InitVAO();
-
-	samplingTest_InitShaders(program);
-
 	return true;
 }
 
@@ -213,6 +210,7 @@ void samplingTest_InitVAO()
 	//	-0.5f, 0.5f, 1.0f
 	//};
 
+	/*
 	GLfloat g_vertex_buffer_data[] = {
 		-0.5f, 0.0f, -0.2f,
 		-0.2f, 0.0f, -0.2f,
@@ -239,18 +237,29 @@ void samplingTest_InitVAO()
 		0.5f, 0.5f, 0.0f,
 		-0.5f, 0.5f, 1.0f
 	};
+	*/
+
+	// Initialize buffer data
+	GLfloat *g_vertex_buffer_data;
+
+	vector<float> all_particles;
+
+	all_particles.insert(all_particles.end(), rigid_body.m_particle_pos.begin(), rigid_body.m_particle_pos.end());
+
+	g_vertex_buffer_data = (GLfloat*)malloc(all_particles.size() * sizeof(GLfloat));
+	std::copy(all_particles.begin(), all_particles.end(), g_vertex_buffer_data);
+	//
 
 	GLuint VertexArrayID[1];
 	glGenVertexArrays(1, VertexArrayID);
 	glBindVertexArray(VertexArrayID[0]);
 
-
 	glGenBuffers(1, &vertexbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, all_particles.size()*sizeof(GLfloat), g_vertex_buffer_data, GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	num_points = sizeof(g_vertex_buffer_data)/3/4;
+	num_points = all_particles.size() / 3;
 }
 
 
@@ -271,6 +280,7 @@ void samplingTest_InitShaders(GLuint & program) {
 	//}
 
 	glEnable(GL_PROGRAM_POINT_SIZE);
+	glEnable(GL_DEPTH_TEST);
 
 
 	//vertex shader

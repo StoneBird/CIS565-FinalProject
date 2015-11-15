@@ -11,6 +11,6 @@
 void samplingInit(int num_v, glm::vec3, float);
 void samplingSetBuffers(float * hst_positions, unsigned int * hst_indices);
 void samplingFree();
-int sampleParticles(Particle *);
+void sampleParticles(std::vector<Particle> &, std::vector<float> &);
 
 
