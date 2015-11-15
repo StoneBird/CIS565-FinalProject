@@ -631,8 +631,8 @@ void updateCamera()
 
 	view = glm::translate(glm::vec3(-x_trans, -y_trans, -z_trans)) * glm::transpose(R);
 
-	projection = glm::lookAt(cameraPosition, glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-	//projection = glm::lookAt(glm::vec3(0.0,0.0,0.0), cameraPosition, glm::vec3(0.0, 1.0, 0.0));
+	//projection = glm::lookAt(cameraPosition, glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+	projection = glm::perspective(45.0f, 1.0f, 0.1f, 100.0f);
 
 	//projection = glm::frustum(-5, 5, -5, 5, -4, 10);
 
