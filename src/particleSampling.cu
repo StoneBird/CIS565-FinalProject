@@ -30,7 +30,7 @@ struct Triangle
 
 struct RayPeel
 {
-	glm::vec2 z;
+	glm::vec2 peel;
 };
 
 
@@ -124,16 +124,45 @@ void samplingFree()
 * Sampling routine
 **************************************************************************************/
 
-__global__
-void intersect(RayPeel * rp, Triangle * tri, const glm::vec3 resolution, const float diameter, const glm::vec3 ray){
+__device__
+void coordRemap(int &x, int &y, const glm::vec3 resolution){
+	x = x - resolution.x / 2;
+	y = resolution.y / 2 - y;
 }
 
 __global__
-void fillPeel(ParticleWrapper * p_out, RayPeel * rp, const glm::vec3 resolution){
+void intersect(RayPeel * rp, Triangle * tri, const glm::vec3 resolution, const float diameter, const glm::vec3 ray){
+	int x = blockDim.x * blockIdx.x + threadIdx.x;
+	int y = blockDim.x * blockIdx.x + threadIdx.x;
+	int idx = x + y*resolution.x;
+	if (x < resolution.x && y < resolution.y){
+		coordRemap(x, y, resolution);
+		rp[idx].peel = glm::vec2(-resolution.z/2, resolution.z/2)*diameter;
+	}
+}
+
+__global__
+void fillPeel(ParticleWrapper * p_out, RayPeel * rp, const glm::vec3 resolution, const float diameter){
+	int x = blockDim.x * blockIdx.x + threadIdx.x;
+	int y = blockDim.x * blockIdx.x + threadIdx.x;
+	int idx = x + y*resolution.x;
+	if (x < resolution.x && y < resolution.y){
+		glm::vec2 p = rp[idx].peel;
+		int depth = abs(p.y - p.x);
+		coordRemap(x, y, resolution);
+		for (int z = 0; z < depth; z++){
+			p_out[idx + z].x = glm::vec3(x, y, z)*diameter;
+			p_out[idx + z].isEmpty = false;
+		}
+	}
 }
 
 __global__
 void translateParticle(Particle *p_out, ParticleWrapper *p_in, int size){
+	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadId < size){
+		p_out[threadId].x = p_in[threadId].x;
+	}
 }
 
 int sampleParticles(Particle * p_out){
@@ -153,7 +182,7 @@ int sampleParticles(Particle * p_out){
 	intersect << <blocksPerGrid, blockSize >> >(dev_peels, dev_triangles, resolution, voxel_diam, ray);
 	checkCUDAError("Intersection");
 		// Fill ray segment
-	fillPeel << <blocksPerGrid, blockSize >> >(dev_particles, dev_peels, resolution);
+	fillPeel << <blocksPerGrid, blockSize >> >(dev_particles, dev_peels, resolution, voxel_diam);
 	checkCUDAError("Peel filling");
 	// Stream compaction
 	thrust::detail::normal_iterator<thrust::device_ptr<ParticleWrapper>> newGridEnd = thrust::remove_if(dev_grid.begin(), dev_grid.end(), is_empty());
