@@ -173,19 +173,19 @@ void fillPeel(ParticleWrapper * p_out, RayPeel * rp, const glm::vec3 resolution,
 }
 
 __global__
-void translateParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, int size){
+void translateParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, int size, const glm::vec3 offset){
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadId < size){
 		glm::vec3 pos = p_in[threadId].x;
 		int pIdx = threadId * 3;
-		p_out[threadId].x = pos;
-		pos_out[pIdx] = pos.x;
-		pos_out[pIdx + 1] = pos.y;
-		pos_out[pIdx + 2] = pos.z;
+		p_out[threadId].x = pos+offset;
+		pos_out[pIdx] = pos.x+offset.x;
+		pos_out[pIdx + 1] = pos.y+offset.y;
+		pos_out[pIdx + 2] = pos.z+offset.z;
 	}
 }
 
-void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos){
+void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos, const glm::vec3 offset){
 	const int blockSideLength = 8;
 	const dim3 blockSize(blockSideLength, blockSideLength);
 	dim3 blocksPerGrid(
@@ -218,7 +218,7 @@ void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos){
 
 	const int blockSizer = 192;
 	dim3 blockCountr((newSize + blockSizer - 1) / blockSizer);
-	translateParticle << <blockCountr, blockSizer >> >(dev_particle_pos_cache, dev_particle_cache, dev_particles, newSize);
+	translateParticle << <blockCountr, blockSizer >> >(dev_particle_pos_cache, dev_particle_cache, dev_particles, newSize, offset);
 	checkCUDAError("Wrapper translation");
 
 	// Copy to host

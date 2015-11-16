@@ -12,14 +12,16 @@
 #include "RigidBody.h"
 #include "particleSampling.h"
 
+#define OBJ_ARR_SIZE 2
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
 
-RigidBody rigid_body;
+RigidBody rigid_body[OBJ_ARR_SIZE];
 
 int main(int argc, char **argv) {
-    if (argc != 2) {
+    if (argc < 2) {
         cout << "Usage: [obj file]" << endl;
         return 0;
     }
@@ -32,8 +34,15 @@ int main(int argc, char **argv) {
 	if (samplingTest_Init()) {
 
 		// Rigid body sampling
-		rigid_body.initObj(argv[1]);
-		rigid_body.initParticles(30);
+		rigid_body[0].initObj(argv[1]);
+		rigid_body[0].translate(glm::vec3(1.0f, 0.0f, 0.0f));
+		rigid_body[0].initParticles(30);
+
+		if (argc == 3){
+			rigid_body[1].initObj(argv[2]);
+			rigid_body[1].translate(glm::vec3(-1.0f, 0.0f, 0.0f));
+			rigid_body[1].initParticles(30);
+		}
 
 		samplingTest_InitVAO();
 		samplingTest_InitShaders(program);
@@ -245,7 +254,9 @@ void samplingTest_InitVAO()
 
 	vector<float> all_particles;
 
-	all_particles.insert(all_particles.end(), rigid_body.m_particle_pos.begin(), rigid_body.m_particle_pos.end());
+	for (int i = 0; i < OBJ_ARR_SIZE; i++){
+		all_particles.insert(all_particles.end(), rigid_body[i].m_particle_pos.begin(), rigid_body[i].m_particle_pos.end());
+	}
 
 	g_vertex_buffer_data = (GLfloat*)malloc(all_particles.size() * sizeof(GLfloat));
 	std::copy(all_particles.begin(), all_particles.end(), g_vertex_buffer_data);

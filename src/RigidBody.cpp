@@ -3,6 +3,9 @@
 
 #include "particleSampling.h"
 
+void RigidBody::translate(glm::vec3 offset){
+	m_offset = offset;
+}
 
 bool RigidBody::initObj(const string & filename)
 {
@@ -68,7 +71,7 @@ void RigidBody::initParticles(int x_res)
 	// --> Per object depth peeling
 	// --> Stream compaction
 	// --> Copy array of Particle to host
-	sampleParticles(m_particles, m_particle_pos);
+	sampleParticles(m_particles, m_particle_pos, m_offset);
 
 	/*
 	printf("%f %f %f\n", m_particles[0].x.x, m_particles[0].x.y, m_particles[0].x.z);

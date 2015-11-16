@@ -23,6 +23,9 @@ protected:
 	//obj geometry
 	vector<tinyobj::shape_t> m_shapes;
 	vector<tinyobj::material_t> m_materials;
+
+	// obj position
+	glm::vec3 m_offset;
 public:
 
 	vector<float> m_particle_pos;
@@ -33,4 +36,6 @@ public:
 
 	//Call this after Obj is loaded
 	void initParticles(int x_res);
+
+	void translate(glm::vec3);
 };
