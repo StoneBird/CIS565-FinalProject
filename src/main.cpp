@@ -633,9 +633,9 @@ void mouseWheelCallback(GLFWwindow* window, double xoffset, double yoffset)
 
 	z_trans += -s_s * yoffset;
 
-	//cout << x_trans<<","<<y_trans<<"," <<z_trans << endl;
-	cout << cameraPosition.x << "," << cameraPosition.y << "," << cameraPosition.z << endl;
-	cout << cameraPosition.length()<<endl;
+	
+	//cout << cameraPosition.x << "," << cameraPosition.y << "," << cameraPosition.z << endl;
+	//cout << cameraPosition.length()<<endl;
 }
 
 
@@ -653,10 +653,6 @@ void updateCamera()
 
 	view = glm::translate(glm::vec3(-x_trans, -y_trans, -z_trans)) * glm::transpose(R);
 
-	//projection = glm::lookAt(cameraPosition, glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
 	projection = glm::perspective(45.0f, 1.0f, 0.1f, 100.0f);
 
-	//projection = glm::frustum(-5, 5, -5, 5, -4, 10);
-
-	//cout << z_trans << endl;
 }
