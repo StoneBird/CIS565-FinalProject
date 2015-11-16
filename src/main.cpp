@@ -12,7 +12,7 @@
 #include "RigidBody.h"
 #include "particleSampling.h"
 
-#define OBJ_ARR_SIZE 4
+#define OBJ_ARR_SIZE 5
 
 //-------------------------------
 //-------------MAIN--------------
@@ -48,10 +48,12 @@ int main(int argc, char **argv) {
 		//	rigid_body[1].initObj(argv[2]);
 		//	rigid_body[1].initParticles(uniform_grid_length);
 		//}
-		for (int i = 0; i < OBJ_ARR_SIZE; i++)
+		float t = 0;
+		for (int i = 1; i < OBJ_ARR_SIZE; i++)
 		{
-			float s = 1.0 - 0.2 * (float)(i + 1);
-			float t = -2.0 * (float)i;
+			float s = 1.0 - 0.2 * (float)i;
+			//float t = -2.3 * (float)i;
+			t += -3.5 * s - 0.2;
 			rigid_body[i].setScale(glm::vec3(s, s, s));
 			rigid_body[i].setTranslate(glm::vec3(t, 0.0f, 0.0f));
 			rigid_body[i].initObj(argv[1]);
