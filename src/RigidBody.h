@@ -24,18 +24,39 @@ protected:
 	vector<tinyobj::shape_t> m_shapes;
 	vector<tinyobj::material_t> m_materials;
 
-	// obj position
-	glm::vec3 m_offset;
+	// obj init transformation
+	// 
+	glm::vec3 m_scale;
+	glm::vec3 m_translate;
+	glm::mat4 m_rotation;
+
 public:
 
 	vector<float> m_particle_pos;
 
+
+	RigidBody();
+
+
+
+	//getter methods
+	float getGridLength(){ return m_grid_length; }
+
+
+
+
+	//init operations
 	bool initObj(const string & filename);
 
 	void initBoundingBox();
 
 	//Call this after Obj is loaded
 	void initParticles(int x_res);
+	void initParticles(float grid_size);
 
-	void translate(glm::vec3);
+	
+	void setScale(glm::vec3 scale);
+	void setTranslate(glm::vec3 translate);
+	void setRotation(glm::mat4 rot);
+	//void setTransform(glm::mat4 mat);
 };

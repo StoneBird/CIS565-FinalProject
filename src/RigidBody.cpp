@@ -3,14 +3,32 @@
 
 #include "particleSampling.h"
 
-void RigidBody::translate(glm::vec3 offset){
-	m_offset = offset;
+RigidBody::RigidBody()
+	:m_scale(1.0), m_translate(0.0)
+{
 }
+
+void RigidBody::setTranslate(glm::vec3 translate)
+{
+	m_translate = translate;
+}
+
+void RigidBody::setScale(glm::vec3 scale)
+{
+	m_scale = scale;
+}
+
+void RigidBody::setRotation(glm::mat4 rot)
+{
+	m_rotation = rot;
+}
+
 
 bool RigidBody::initObj(const string & filename)
 {
 	string err;
 	bool ret = tinyobj::LoadObj(m_shapes, m_materials, err,filename.c_str());
+
 
 	initBoundingBox();
 	//TODO: handle error cases
@@ -24,7 +42,8 @@ void RigidBody::initBoundingBox()
 	m_max = glm::vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
 	//get bounding box
-	for (auto shape : m_shapes)
+	//for (auto shape : m_shapes)
+	for (tinyobj::shape_t& shape : m_shapes)
 	{
 		for (int i = 0; i < shape.mesh.indices.size() / 3; i++)
 		{
@@ -33,9 +52,17 @@ void RigidBody::initBoundingBox()
 			{
 				//for each vertex
 				int idx = shape.mesh.indices.at(3 * i + j);
+
+				//scale
+				shape.mesh.positions[3 * idx + 0] *= m_scale.x;
+				shape.mesh.positions[3 * idx + 1] *= m_scale.y;
+				shape.mesh.positions[3 * idx + 2] *= m_scale.z;
+
+
 				glm::vec3 pos(shape.mesh.positions[3 * idx + 0]
 					, shape.mesh.positions[3 * idx + 1]
 					, shape.mesh.positions[3 * idx + 2]);
+
 				m_min.x = min(m_min.x, pos.x);
 				m_min.y = min(m_min.y, pos.y);
 				m_min.z = min(m_min.z, pos.z);
@@ -61,7 +88,16 @@ void RigidBody::initParticles(int x_res)
 	// Use resolution on one axis to compute voxel grid side length
 	// Use side length to find # of particles on the other 2 axes
 	m_grid_length = tmp.x / ((float)x_res);
-	m_resolution = glm::ceil((tmp) / m_grid_length);
+
+	initParticles(m_grid_length);
+}
+
+
+void RigidBody::initParticles(float grid_size)
+{	
+	m_grid_length = grid_size;
+
+	m_resolution = glm::ceil((m_max - m_min) / m_grid_length);
 
 	// Transfer model data from host to device; init properties
 	// --> Per object particle count
@@ -71,7 +107,7 @@ void RigidBody::initParticles(int x_res)
 	// --> Per object depth peeling
 	// --> Stream compaction
 	// --> Copy array of Particle to host
-	sampleParticles(m_particles, m_particle_pos, m_offset);
+	sampleParticles(m_particles, m_particle_pos, glm::translate(m_translate) * m_rotation);
 
 	/*
 	printf("%f %f %f\n", m_particles[0].x.x, m_particles[0].x.y, m_particles[0].x.z);

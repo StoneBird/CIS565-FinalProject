@@ -12,13 +12,15 @@
 #include "RigidBody.h"
 #include "particleSampling.h"
 
-#define OBJ_ARR_SIZE 2
+#define OBJ_ARR_SIZE 4
 
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
 
 RigidBody rigid_body[OBJ_ARR_SIZE];
+float uniform_grid_length;
+
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -34,14 +36,17 @@ int main(int argc, char **argv) {
 	if (samplingTest_Init()) {
 
 		// Rigid body sampling
+		rigid_body[0].setScale(glm::vec3(0.4f, 0.4f, 0.4f));
+		rigid_body[0].setTranslate(glm::vec3(1.0f, 0.0f, 0.0f));
 		rigid_body[0].initObj(argv[1]);
-		rigid_body[0].translate(glm::vec3(1.0f, 0.0f, 0.0f));
 		rigid_body[0].initParticles(30);
 
+		uniform_grid_length = rigid_body[0].getGridLength();
+
 		if (argc == 3){
+			rigid_body[0].setTranslate(glm::vec3(-1.0f, 0.0f, 0.0f));
 			rigid_body[1].initObj(argv[2]);
-			rigid_body[1].translate(glm::vec3(-1.0f, 0.0f, 0.0f));
-			rigid_body[1].initParticles(30);
+			rigid_body[1].initParticles(uniform_grid_length);
 		}
 
 		samplingTest_InitVAO();
@@ -106,7 +111,7 @@ void samplingTest_Loop()
 		glUniformMatrix4fv(u_modelView, 1, GL_FALSE, &modelView[0][0]);
 		glUniformMatrix4fv(u_projMatrix, 1, GL_FALSE, &projection[0][0]);
 		glUniform2fv(u_screenSize, 1, &screenSize[0]);
-		glUniform1f(u_spriteSize, 0.1*scale);
+		glUniform1f(u_spriteSize, uniform_grid_length);		//radius tmp
 
 		glUniform3f(u_color, 1.0, 1.0, 0.0);
 		glUniform3f(u_lightDir, 0.0, 0.0, 1.0);
