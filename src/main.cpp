@@ -12,7 +12,7 @@
 #include "RigidBody.h"
 #include "particleSampling.h"
 
-#define OBJ_ARR_SIZE 4
+#define OBJ_ARR_SIZE 2
 
 //-------------------------------
 //-------------MAIN--------------
