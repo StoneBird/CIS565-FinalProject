@@ -149,7 +149,7 @@ void intersect(RayPeel * rp, Triangle * tri, const int tri_count, const glm::vec
 		if (!hasIntersect){
 			peel = glm::vec2(0.0f);
 		}
-		rp[idx].peel = ceil(peel/diameter);
+		rp[idx].peel = peel/diameter;
 	}
 }
 
@@ -160,7 +160,7 @@ void fillPeel(ParticleWrapper * p_out, RayPeel * rp, const glm::vec3 resolution,
 	int idx = x + y*resolution.x;
 	if (x < resolution.x && y < resolution.y){
 		glm::vec2 p = rp[idx].peel;
-		int depth = abs(p.y - p.x);
+		int depth = ceil(abs(p.y - p.x));
 		coordRemap(x, y, resolution);
 		for (int z = 0; z < depth; z++){
 			p_out[idx*(int)resolution.z + z].x = glm::vec3(x, y, z+p.x)*diameter;
