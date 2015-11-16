@@ -12,7 +12,7 @@
 #include "RigidBody.h"
 #include "particleSampling.h"
 
-#define OBJ_ARR_SIZE 2
+#define OBJ_ARR_SIZE 4
 
 //-------------------------------
 //-------------MAIN--------------
@@ -36,17 +36,26 @@ int main(int argc, char **argv) {
 	if (samplingTest_Init()) {
 
 		// Rigid body sampling
-		rigid_body[0].setScale(glm::vec3(0.4f, 0.4f, 0.4f));
-		rigid_body[0].setTranslate(glm::vec3(1.0f, 0.0f, 0.0f));
+		//rigid_body[0].setScale(glm::vec3(0.4f, 0.4f, 0.4f));
+		rigid_body[0].setTranslate(glm::vec3(0.0f, 0.0f, 0.0f));
 		rigid_body[0].initObj(argv[1]);
 		rigid_body[0].initParticles(30);
 
 		uniform_grid_length = rigid_body[0].getGridLength();
 
-		if (argc == 3){
-			rigid_body[0].setTranslate(glm::vec3(-1.0f, 0.0f, 0.0f));
-			rigid_body[1].initObj(argv[2]);
-			rigid_body[1].initParticles(uniform_grid_length);
+		//if (argc == 3){
+		//	rigid_body[0].setTranslate(glm::vec3(-1.0f, 0.0f, 0.0f));
+		//	rigid_body[1].initObj(argv[2]);
+		//	rigid_body[1].initParticles(uniform_grid_length);
+		//}
+		for (int i = 0; i < OBJ_ARR_SIZE; i++)
+		{
+			float s = 1.0 - 0.2 * (float)(i + 1);
+			float t = -2.0 * (float)i;
+			rigid_body[i].setScale(glm::vec3(s, s, s));
+			rigid_body[i].setTranslate(glm::vec3(t, 0.0f, 0.0f));
+			rigid_body[i].initObj(argv[1]);
+			rigid_body[i].initParticles(uniform_grid_length);
 		}
 
 		samplingTest_InitVAO();
