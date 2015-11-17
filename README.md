@@ -67,5 +67,6 @@ Preprocessing → Simulation → Vertex Shader (→ Geometry Shader / Meshing �
 
 * 11/16 Kick off, Framework setup, Rigid body sampling
 	* https://docs.google.com/presentation/d/1nClJdx0G_EBylSQqkaYH11iI2RveZ4sG65v9emGyrXw/edit?usp=sharing
+	![][img/milestone1.png]
 	
 	
