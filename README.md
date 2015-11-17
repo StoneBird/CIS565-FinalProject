@@ -62,3 +62,10 @@ Preprocessing → Simulation → Vertex Shader (→ Geometry Shader / Meshing �
 	* pcl(for particle system meshing): http://pointclouds.org/
 	* Eigen: http://eigen.tuxfamily.org/index.php?title=Main_Page
 	* cuBLAS: https://developer.nvidia.com/cublas
+	
+#### Presentation
+
+* 11/16 Kick off, Framework setup, Rigid body sampling
+	* https://docs.google.com/presentation/d/1nClJdx0G_EBylSQqkaYH11iI2RveZ4sG65v9emGyrXw/edit?usp=sharing
+	
+	
