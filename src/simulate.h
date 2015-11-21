@@ -6,7 +6,6 @@
 #include "Particle.h"
 #include "rasterizeTools.h"
 
-//simulate
+//CUDA-accelerated particle sampling of rigid body obj models
 
-
-void applyExternalForces();
+void applyForces(int num_particles, const glm::vec3 forces, const float delta_t)

@@ -59,4 +59,9 @@ public:
 	void setTranslate(glm::vec3 translate);
 	void setRotation(glm::mat4 rot);
 	//void setTransform(glm::mat4 mat);
+
+
+
+	//test for update vao
+	void updatePositions();
 };

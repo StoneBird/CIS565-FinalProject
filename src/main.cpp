@@ -12,7 +12,7 @@
 #include "RigidBody.h"
 #include "particleSampling.h"
 
-#define OBJ_ARR_SIZE 5
+#define OBJ_ARR_SIZE 1
 
 //-------------------------------
 //-------------MAIN--------------
@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
 		//rigid_body[0].setScale(glm::vec3(0.4f, 0.4f, 0.4f));
 		rigid_body[0].setTranslate(glm::vec3(0.0f, 0.0f, 0.0f));
 		rigid_body[0].initObj(argv[1]);
-		rigid_body[0].initParticles(30);
+		rigid_body[0].initParticles(10);
 
 		uniform_grid_length = rigid_body[0].getGridLength();
 
@@ -48,6 +48,7 @@ int main(int argc, char **argv) {
 		//	rigid_body[1].initObj(argv[2]);
 		//	rigid_body[1].initParticles(uniform_grid_length);
 		//}
+
 		float t = 0;
 		for (int i = 1; i < OBJ_ARR_SIZE; i++)
 		{
@@ -132,6 +133,7 @@ void samplingTest_Loop()
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
 		//glPointSize(30);
+		
 		glDrawArrays(GL_POINTS, 0, num_points);
 		glDisableVertexAttribArray(0);
 		
@@ -276,16 +278,18 @@ void samplingTest_InitVAO()
 
 	g_vertex_buffer_data = (GLfloat*)malloc(all_particles.size() * sizeof(GLfloat));
 	std::copy(all_particles.begin(), all_particles.end(), g_vertex_buffer_data);
-	//
-
+	
+	
 	GLuint VertexArrayID[1];
 	glGenVertexArrays(1, VertexArrayID);
 	glBindVertexArray(VertexArrayID[0]);
 
 	glGenBuffers(1, &vertexbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	glBufferData(GL_ARRAY_BUFFER, all_particles.size()*sizeof(GLfloat), g_vertex_buffer_data, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, all_particles.size()*sizeof(GLfloat), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	
 
 	num_points = all_particles.size() / 3;
 }

@@ -6,6 +6,8 @@ set(SOURCE_FILES
     "RigidBody.cpp"
     "particleSampling.h"
     "particleSampling.cu"
+    "simulate.h"
+    "simulate.cu"
 	"rasterizeTools.h"
     )
 

@@ -114,3 +114,11 @@ void RigidBody::initParticles(float grid_size)
 	printf("%f %f %f\n", m_particle_pos[0], m_particle_pos[1], m_particle_pos[2]);
 	*/
 }
+
+
+//test
+void RigidBody::updatePositions()
+{
+	//sampleParticles(m_particle_pos.size(),)
+	m_particle_pos[0] += 0.1;
+}

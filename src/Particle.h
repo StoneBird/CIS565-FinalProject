@@ -10,7 +10,7 @@ struct Particle
 	glm::vec3 x;	//position
 	glm::vec3 v;	//velocity
 
-	float invmass;
+	float invmass;	//1/mass, 0 means static object, mass = infinity
 
 	int phase;		//group
 };
