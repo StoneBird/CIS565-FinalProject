@@ -20,6 +20,8 @@
 
 RigidBody rigid_body[OBJ_ARR_SIZE];
 float uniform_grid_length;
+GLfloat *v_buffer_ptr;
+int buffer_size;
 
 
 int main(int argc, char **argv) {
@@ -39,7 +41,7 @@ int main(int argc, char **argv) {
 		//rigid_body[0].setScale(glm::vec3(0.4f, 0.4f, 0.4f));
 		rigid_body[0].setTranslate(glm::vec3(0.0f, 0.0f, 0.0f));
 		rigid_body[0].initObj(argv[1]);
-		rigid_body[0].initParticles(30);
+		rigid_body[0].initParticles(10);
 
 		uniform_grid_length = rigid_body[0].getGridLength();
 
@@ -48,6 +50,7 @@ int main(int argc, char **argv) {
 		//	rigid_body[1].initObj(argv[2]);
 		//	rigid_body[1].initParticles(uniform_grid_length);
 		//}
+		/*
 		float t = 0;
 		for (int i = 1; i < OBJ_ARR_SIZE; i++)
 		{
@@ -59,6 +62,7 @@ int main(int argc, char **argv) {
 			rigid_body[i].initObj(argv[1]);
 			rigid_body[i].initParticles(uniform_grid_length);
 		}
+		*/
 
 		samplingTest_InitVAO();
 		samplingTest_InitShaders(program);
@@ -127,7 +131,18 @@ void samplingTest_Loop()
 		glUniform3f(u_color, 1.0, 1.0, 0.0);
 		glUniform3f(u_lightDir, 0.0, 0.0, 1.0);
 
+
 		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+
+		// Get buffer pointer for animation
+		v_buffer_ptr = (GLfloat*)glMapBufferRange(GL_ARRAY_BUFFER, 0, buffer_size * sizeof(GLfloat), GL_MAP_WRITE_BIT | GL_MAP_READ_BIT);
+
+		// Do simulation & animations
+		v_buffer_ptr[0] += 0.01f;
+
+		// Unmap the buffer pointer so that openGL will start rendering
+		glUnmapBuffer(GL_ARRAY_BUFFER);
+
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
@@ -284,10 +299,11 @@ void samplingTest_InitVAO()
 
 	glGenBuffers(1, &vertexbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	glBufferData(GL_ARRAY_BUFFER, all_particles.size()*sizeof(GLfloat), g_vertex_buffer_data, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, all_particles.size()*sizeof(GLfloat), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	num_points = all_particles.size() / 3;
+	buffer_size = all_particles.size();
 }
 
 
