@@ -55,6 +55,8 @@ void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 		int size = rigidbodys[i].m_particles.size();
 		cudaMemcpy(dev_particles + cur, rigidbodys[i].m_particles.data(), size * sizeof(Particle), cudaMemcpyHostToDevice);
 		cur += size;
+
+		// TODO copy position values too so that particle sleeping works
 	}
 	checkCUDAError("ERROR: assemble particle array");
 }
@@ -75,9 +77,6 @@ void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, c
 		//apply forces
 		particles[threadId].v += particles[threadId].invmass * forces * delta_t;
 
-		// Float zero threshold
-		particles[threadId].v = glm::trunc(particles[threadId].v*1000.0f) / 1000.0f;
-
 		//predict positions
 		//predictPosition[threadId] = particles[threadId].x + particles[threadId].v * delta_t;
 
@@ -96,6 +95,10 @@ void updatePositionFloatArray(int N, Particle * particles, float * positions)
 
 	if (threadId < N)
 	{
+		// Particle sleeping example
+		// Truncate super small values so avoid if-statement
+		//positions[3 * threadId] = positions[3 * threadId] + glm::trunc((particles[threadId]-positions[3 * threadId])*1000.0f) / 1000.0f;
+
 		positions[3 * threadId] = particles[threadId].x.x;
 		positions[3 * threadId + 1] = particles[threadId].x.y;
 		positions[3 * threadId + 2] = particles[threadId].x.z;
