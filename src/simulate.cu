@@ -171,17 +171,21 @@ void solveRigidBody(){
 }
 
 __global__
-void updatePositionFloatArray(int N, glm::vec3 * predictions, Particle * particles, float * positions)
+void updatePositionFloatArray(int N, glm::vec3 * predictions, Particle * particles, float * positions, const float delta_t)
 {
 	//N = num of particles
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
 
 	if (threadId < N)
 	{
+		// Update velocity
+		particles[threadId].v = (predictions[threadId] - particles[threadId].x) / delta_t;
+
 		// Particle sleeping
 		// Truncate super small values so avoid if-statement
 		particles[threadId].x = particles[threadId].x + glm::trunc((predictions[threadId] - particles[threadId].x)*100000.0f) / 100000.0f;
 
+		// Update positions
 		positions[3 * threadId] = particles[threadId].x.x;
 		positions[3 * threadId + 1] = particles[threadId].x.y;
 		positions[3 * threadId + 2] = particles[threadId].x.z;
@@ -210,7 +214,7 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 	solveRigidBody << <blockCountr, blockSizer>> >();
 
 	//update to position float array
-	updatePositionFloatArray << <blockCountr, blockSizer >> >(num_particles, dev_predictPosition, dev_particles, dev_positions);
+	updatePositionFloatArray << <blockCountr, blockSizer >> >(num_particles, dev_predictPosition, dev_particles, dev_positions, delta_t);
 	checkCUDAError("ERROR: copy to dev_position");
 
 	cudaMemcpy(opengl_buffer, dev_positions, 3 * num_particles * sizeof(float), cudaMemcpyDeviceToHost);
