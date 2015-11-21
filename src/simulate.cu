@@ -39,9 +39,6 @@ static int * dev_particle_voxel_id;
 //	initUniformGrid(bmin, bmax, particle_diameter);
 //}
 
-
-
-
 void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 {
 	num_particles = 0;
@@ -72,8 +69,7 @@ void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 	checkCUDAError("ERROR: assemble particle array");
 }
 
-
-void initUniformGrid(glm::vec3 bmin, glm::vec3 bmax , float diameter)
+void initUniformGrid(glm::vec3 bmin, glm::vec3 bmax, float diameter)
 {
 	//init size
 	grid_min_x = bmin;
@@ -81,7 +77,7 @@ void initUniformGrid(glm::vec3 bmin, glm::vec3 bmax , float diameter)
 
 	grid_length = diameter;
 
-	grid_resolution = ceil( (grid_max_x - grid_min_x) / grid_length );
+	grid_resolution = ceil((grid_max_x - grid_min_x) / grid_length);
 
 
 	int grid_size = grid_resolution.x * grid_resolution.y * grid_resolution.z;
@@ -89,6 +85,19 @@ void initUniformGrid(glm::vec3 bmin, glm::vec3 bmax , float diameter)
 	cudaMemset(dev_grid, 0, grid_size * sizeof(Voxel));
 
 	cudaMalloc(&dev_particle_voxel_id, num_particles);
+}
+
+void endSimulation()
+{
+	cudaFree(dev_particles);
+
+	cudaFree(dev_predictPosition);
+
+	cudaFree(dev_positions);
+
+
+	cudaFree(dev_grid);
+	cudaFree(dev_particle_voxel_id);
 }
 
 
@@ -148,13 +157,18 @@ void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, c
 
 		//predict positions
 		predictPosition[threadId] = particles[threadId].x + particles[threadId].v * delta_t;
-
-		//test TODO delete this
-		//particles[threadId].x = particles[threadId].x + particles[threadId].v * delta_t;
 	}
 }
 
-
+__global__
+void solveRigidBody(){
+	// Collision detection & reaction (get particle force)
+	// Compute momenta; linear and angular
+	// Delta X for collision
+	// Shape matching constraint
+	// Delta X for shape matching
+	// Average and update
+}
 
 __global__
 void updatePositionFloatArray(int N, glm::vec3 * predictions, Particle * particles, float * positions)
@@ -166,14 +180,13 @@ void updatePositionFloatArray(int N, glm::vec3 * predictions, Particle * particl
 	{
 		// Particle sleeping
 		// Truncate super small values so avoid if-statement
-		particles[threadId].x = particles[threadId].x + glm::trunc((predictions[threadId]-particles[threadId].x)*100000.0f) / 100000.0f;
+		particles[threadId].x = particles[threadId].x + glm::trunc((predictions[threadId] - particles[threadId].x)*100000.0f) / 100000.0f;
 
 		positions[3 * threadId] = particles[threadId].x.x;
 		positions[3 * threadId + 1] = particles[threadId].x.y;
 		positions[3 * threadId + 2] = particles[threadId].x.z;
 	}
 }
-
 
 void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer)
 {
@@ -193,9 +206,8 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 	updateVoxelIndex << <blockCountr, blockSizer >> >(num_particles, grid_resolution, grid_min_x, grid_length, dev_predictPosition, dev_grid, dev_particle_voxel_id);
 	checkCUDAError("ERROR: updateVoxelIndex");
 
-
-	//TODO: constraints...
-	
+	// Rigid body (partilce centric; one single kernel)
+	solveRigidBody << <blockCountr, blockSizer>> >();
 
 	//update to position float array
 	updatePositionFloatArray << <blockCountr, blockSizer >> >(num_particles, dev_predictPosition, dev_particles, dev_positions);
@@ -204,27 +216,3 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 	cudaMemcpy(opengl_buffer, dev_positions, 3 * num_particles * sizeof(float), cudaMemcpyDeviceToHost);
 	checkCUDAError("ERROR: copy to opengl_buffer");
 }
-
-
-
-
-
-
-
-
-
-
-void endSimulation()
-{
-	cudaFree(dev_particles);
-
-	cudaFree(dev_predictPosition);
-
-	cudaFree(dev_positions);
-
-
-	cudaFree(dev_grid);
-	cudaFree(dev_particle_voxel_id);
-}
-
-
