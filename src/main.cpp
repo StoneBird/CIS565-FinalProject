@@ -11,8 +11,12 @@
 
 #include "RigidBody.h"
 #include "particleSampling.h"
+#include "simulate.h"
 
 #define OBJ_ARR_SIZE 1
+
+#define GRAVITY (glm::vec3(0.0f,-1.0f,0.0f))
+#define DELTA_T (0.01f)
 
 //-------------------------------
 //-------------MAIN--------------
@@ -22,6 +26,7 @@ RigidBody rigid_body[OBJ_ARR_SIZE];
 float uniform_grid_length;
 GLfloat *v_buffer_ptr;
 int buffer_size;
+
 
 
 int main(int argc, char **argv) {
@@ -73,6 +78,9 @@ int main(int argc, char **argv) {
 		//mainLoop();
 		
 		samplingTest_Loop();
+
+
+
 	}
 
 	
@@ -136,14 +144,23 @@ void samplingTest_Loop()
 
 		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
 
+		
+		
+		//update buffer data
+		
 		// Get buffer pointer for animation
 		v_buffer_ptr = (GLfloat*)glMapBufferRange(GL_ARRAY_BUFFER, 0, buffer_size * sizeof(GLfloat), GL_MAP_WRITE_BIT | GL_MAP_READ_BIT);
 
 		// Do simulation & animations
-		v_buffer_ptr[0] += 0.01f;
+		//v_buffer_ptr[0] += 0.01f;
+
+		simulate(GRAVITY, DELTA_T, v_buffer_ptr);
 
 		// Unmap the buffer pointer so that openGL will start rendering
 		glUnmapBuffer(GL_ARRAY_BUFFER);
+
+		///////////////////////////
+
 
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
@@ -160,6 +177,8 @@ void samplingTest_Loop()
 	}
 	glfwDestroyWindow(window);
 	glfwTerminate();
+
+	endSimulation();
 }
 
 
@@ -213,79 +232,16 @@ bool samplingTest_Init()
 
 void samplingTest_InitVAO()
 {
-	//GLfloat vertices[] = {
-	//	-1.0f, -1.0f,
-	//	1.0f, -1.0f,
-	//	1.0f, 1.0f,
-	//	-1.0f, 1.0f,
-	//};
-
-	//GLfloat texcoords[] = {
-	//	1.0f, 1.0f,
-	//	0.0f, 1.0f,
-	//	0.0f, 0.0f,
-	//	1.0f, 0.0f
-	//};
-
-	//GLushort indices[] = { 0, 1, 3, 3, 1, 2 };
-
-	////GLuint vertexBufferObjID[3];
-	//glGenBuffers(3, vertexBufferObjID);
-
-	//glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[0]);
-	//glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	//glVertexAttribPointer((GLuint)positionLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	//glEnableVertexAttribArray(positionLocation);
-
-	//glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[1]);
-	//glBufferData(GL_ARRAY_BUFFER, sizeof(texcoords), texcoords, GL_STATIC_DRAW);
-	//glVertexAttribPointer((GLuint)texcoordsLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	//glEnableVertexAttribArray(texcoordsLocation);
-
-	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertexBufferObjID[2]);
-	//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-
-
-	//GLfloat g_vertex_buffer_data[] = {
-	//	-0.5f, -0.5f, 0.0f,
-	//	0.5f, -0.5f, -1.0f,
-	//	0.5f, 0.5f, 0.0f,
-	//	-0.5f, 0.5f, 1.0f
-	//};
-
-	/*
-	GLfloat g_vertex_buffer_data[] = {
-		-0.5f, 0.0f, -0.2f,
-		-0.2f, 0.0f, -0.2f,
-		-0.7f, 0.0f, -0.2f,
-		0.1f, 0.0f, -0.2f,
-		0.3f, 0.0f, -0.2f,
-		0.6f, 0.0f, -0.2f,
-
-		-0.5f, 0.0f, 0.0f,
-		-0.2f, 0.0f, 0.0f,
-		-0.7f, 0.0f, 0.0f,
-		0.1f, 0.0f, 0.0f,
-		0.3f, 0.0f, 0.0f,
-		0.6f, 0.0f, 0.0f,
-
-		-0.5f, 0.0f, 0.5f,
-		-0.2f, 0.0f, 0.5f,
-		-0.7f, 0.0f, 0.5f,
-		0.1f, 0.0f, 0.5f,
-		0.3f, 0.0f, 0.5f,
-		0.6f, 0.0f, 0.5f,
-
-		0.5f, -0.5f, -1.0f,
-		0.5f, 0.5f, 0.0f,
-		-0.5f, 0.5f, 1.0f
-	};
-	*/
-
 	// Initialize buffer data
 	GLfloat *g_vertex_buffer_data;
 
+
+	//cuda particle init simulate
+	assembleParticleArray(OBJ_ARR_SIZE, rigid_body);
+
+
+
+	//init opengl vertex buffer
 	vector<float> all_particles;
 
 	for (int i = 0; i < OBJ_ARR_SIZE; i++){

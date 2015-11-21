@@ -62,6 +62,5 @@ public:
 
 
 
-	//test for update vao
-	void updatePositions();
+	
 };

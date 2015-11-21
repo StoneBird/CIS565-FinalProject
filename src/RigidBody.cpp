@@ -116,9 +116,3 @@ void RigidBody::initParticles(float grid_size)
 }
 
 
-//test
-void RigidBody::updatePositions()
-{
-	//sampleParticles(m_particle_pos.size(),)
-	m_particle_pos[0] += 0.1;
-}
