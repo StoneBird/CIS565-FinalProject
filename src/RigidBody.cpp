@@ -28,6 +28,10 @@ void RigidBody::setInitVelocity(glm::vec3 iv){
 	m_init_velocity = iv;
 }
 
+void RigidBody::setMassScale(float s){
+	m_mass_scale = s;
+}
+
 
 bool RigidBody::initObj(const string & filename)
 {
@@ -112,7 +116,7 @@ void RigidBody::initParticles(float grid_size)
 	// --> Per object depth peeling
 	// --> Stream compaction
 	// --> Copy array of Particle to host
-	sampleParticles(m_particles, m_particle_pos, glm::translate(m_translate) * m_rotation, m_init_velocity);
+	sampleParticles(m_particles, m_particle_pos, glm::translate(m_translate) * m_rotation, m_init_velocity, m_mass_scale);
 
 	/*
 	printf("%f %f %f\n", m_particles[0].x.x, m_particles[0].x.y, m_particles[0].x.z);

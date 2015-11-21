@@ -122,7 +122,7 @@ void updateVoxelIndex(int N , glm::ivec3 grid_resolution, glm::vec3 min_x, float
 			|| coordinate.z >= grid_resolution.z || coordinate.z < 0)
 		{
 			//don't assign to vertex
-			printf("out of simulation region\n");	//test
+			//printf("out of simulation region\n");	//test
 			return;
 		}
 
@@ -149,9 +149,6 @@ void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, c
 
 	if (threadId < N)
 	{
-		//TODO:delete this, for test only
-		particles[threadId].invmass = 1.0f;
-
 		//apply forces
 		particles[threadId].v += particles[threadId].invmass * forces * delta_t;
 

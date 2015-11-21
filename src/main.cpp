@@ -13,7 +13,7 @@
 #include "particleSampling.h"
 #include "simulate.h"
 
-#define OBJ_ARR_SIZE 1
+#define OBJ_ARR_SIZE 2
 
 #define GRAVITY (glm::vec3(0.0f,-9.8f,0.0f))
 #define DELTA_T (0.0167f)
@@ -46,16 +46,19 @@ int main(int argc, char **argv) {
 		//rigid_body[0].setScale(glm::vec3(0.4f, 0.4f, 0.4f));
 		rigid_body[0].setTranslate(glm::vec3(0.0f, 0.0f, 0.0f));
 		rigid_body[0].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
+		rigid_body[0].setMassScale(1.0f);
 		rigid_body[0].initObj(argv[1]);
 		rigid_body[0].initParticles(10);
 
 		uniform_grid_length = rigid_body[0].getGridLength();
 
-		//if (argc == 3){
-		//	rigid_body[0].setTranslate(glm::vec3(-1.0f, 0.0f, 0.0f));
-		//	rigid_body[1].initObj(argv[2]);
-		//	rigid_body[1].initParticles(uniform_grid_length);
-		//}
+		if (argc == 3){
+			rigid_body[1].setTranslate(glm::vec3(0.0f, -3.0f, 0.0f));
+			rigid_body[0].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
+			rigid_body[1].setMassScale(0.0f);
+			rigid_body[1].initObj(argv[2]);
+			rigid_body[1].initParticles(uniform_grid_length);
+		}
 
 		/*
 

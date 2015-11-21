@@ -30,6 +30,9 @@ protected:
 	// obj init velocity
 	glm::vec3 m_init_velocity;
 
+	// obj particle mass scale
+	float m_mass_scale;
+
 public:
 	//particle
 	vector<Particle> m_particles;
@@ -60,6 +63,8 @@ public:
 	void setTranslate(glm::vec3 translate);
 	void setRotation(glm::mat4 rot);
 	//void setTransform(glm::mat4 mat);
+
+	void setMassScale(float);
 
 	void setInitVelocity(glm::vec3);
 

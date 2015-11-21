@@ -173,7 +173,7 @@ void fillPeel(ParticleWrapper * p_out, RayPeel * rp, const glm::vec3 resolution,
 }
 
 __global__
-void transformParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, int size, const glm::mat4 mat, const glm::vec3 body_init_velocity){
+void transformParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, int size, const glm::mat4 mat, const glm::vec3 body_init_velocity, const float body_mass_scale){
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadId < size){
 		glm::vec3 pos = p_in[threadId].x;
@@ -190,13 +190,18 @@ void transformParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, i
 		// Use rigid body's velocity
 		p_out[threadId].v = body_init_velocity;
 
+		// Scale particle mass (so that static objects can work)
+		// TODO assign invmass somewhere else
+		p_out[threadId].invmass = 1.0f;
+		p_out[threadId].invmass = p_out[threadId].invmass * body_mass_scale;
+
 		pos_out[pIdx] = tmp.x;
 		pos_out[pIdx + 1] = tmp.y;
 		pos_out[pIdx + 2] = tmp.z;
 	}
 }
 
-void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos, const glm::mat4 mat, const glm::vec3 body_init_velocity){
+void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos, const glm::mat4 mat, const glm::vec3 body_init_velocity, const float body_mass_scale){
 	const int blockSideLength = 8;
 	const dim3 blockSize(blockSideLength, blockSideLength);
 	dim3 blocksPerGrid(
@@ -229,7 +234,7 @@ void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos, 
 
 	const int blockSizer = 192;
 	dim3 blockCountr((newSize + blockSizer - 1) / blockSizer);
-	transformParticle << <blockCountr, blockSizer >> >(dev_particle_pos_cache, dev_particle_cache, dev_particles, newSize, mat, body_init_velocity);
+	transformParticle << <blockCountr, blockSizer >> >(dev_particle_pos_cache, dev_particle_cache, dev_particles, newSize, mat, body_init_velocity, body_mass_scale);
 	checkCUDAError("Wrapper translation");
 
 	// Copy to host
