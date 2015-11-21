@@ -173,7 +173,7 @@ void fillPeel(ParticleWrapper * p_out, RayPeel * rp, const glm::vec3 resolution,
 }
 
 __global__
-void transformParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, int size, const glm::mat4 mat){
+void transformParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, int size, const glm::mat4 mat, const glm::vec3 body_init_velocity){
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadId < size){
 		glm::vec3 pos = p_in[threadId].x;
@@ -186,13 +186,17 @@ void transformParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, i
 		glm::vec4 tmp = mat * glm::vec4(pos, 1.0f);
 		tmp /= tmp.w;
 		p_out[threadId].x = glm::vec3( tmp.x,tmp.y,tmp.z );
+
+		// Use rigid body's velocity
+		p_out[threadId].v = body_init_velocity;
+
 		pos_out[pIdx] = tmp.x;
 		pos_out[pIdx + 1] = tmp.y;
 		pos_out[pIdx + 2] = tmp.z;
 	}
 }
 
-void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos, const glm::mat4 mat){
+void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos, const glm::mat4 mat, const glm::vec3 body_init_velocity){
 	const int blockSideLength = 8;
 	const dim3 blockSize(blockSideLength, blockSideLength);
 	dim3 blocksPerGrid(
@@ -225,7 +229,7 @@ void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos, 
 
 	const int blockSizer = 192;
 	dim3 blockCountr((newSize + blockSizer - 1) / blockSizer);
-	transformParticle << <blockCountr, blockSizer >> >(dev_particle_pos_cache, dev_particle_cache, dev_particles, newSize, mat);
+	transformParticle << <blockCountr, blockSizer >> >(dev_particle_pos_cache, dev_particle_cache, dev_particles, newSize, mat, body_init_velocity);
 	checkCUDAError("Wrapper translation");
 
 	// Copy to host

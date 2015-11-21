@@ -17,9 +17,6 @@ protected:
 	glm::vec3 m_min;
 	glm::vec3 m_max;
 
-	//particle
-	vector<Particle> m_particles;
-
 	//obj geometry
 	vector<tinyobj::shape_t> m_shapes;
 	vector<tinyobj::material_t> m_materials;
@@ -30,8 +27,12 @@ protected:
 	glm::vec3 m_translate;
 	glm::mat4 m_rotation;
 
-public:
+	// obj init velocity
+	glm::vec3 m_init_velocity;
 
+public:
+	//particle
+	vector<Particle> m_particles;
 	vector<float> m_particle_pos;
 
 
@@ -60,7 +61,7 @@ public:
 	void setRotation(glm::mat4 rot);
 	//void setTransform(glm::mat4 mat);
 
-
+	void setInitVelocity(glm::vec3);
 
 	
 };

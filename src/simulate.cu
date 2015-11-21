@@ -36,12 +36,13 @@ void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 	num_particles = 0;
 	for (int i = 0; i < num_rigidBody; i++)
 	{
-		num_particles += rigidbodys[i].m_particle_pos.size();
+		num_particles += rigidbodys[i].m_particles.size();
 	}
 
 	cudaMalloc(&dev_particles, num_particles * sizeof(Particle));
-	cudaMalloc(&dev_predictPosition, num_particles * sizeof(float));
-	cudaMemset(dev_predictPosition, 0, num_particles * sizeof(float));
+
+	cudaMalloc(&dev_predictPosition, num_particles * sizeof(glm::vec3));
+	cudaMemset(dev_predictPosition, 0, num_particles * sizeof(glm::vec3));
 
 	cudaMalloc(&dev_positions, 3 * num_particles * sizeof(float));
 	cudaMemset(dev_positions, 0, 3 * num_particles * sizeof(float));
@@ -50,8 +51,9 @@ void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 	int cur = 0;
 	for (int i = 0; i < num_rigidBody; i++)
 	{
-		int size = rigidbodys[i].m_particle_pos.size();
-		cudaMemcpy(dev_particles + cur, rigidbodys[i].m_particle_pos.data(), size * sizeof(Particle), cudaMemcpyHostToDevice);
+		// Particle objects
+		int size = rigidbodys[i].m_particles.size();
+		cudaMemcpy(dev_particles + cur, rigidbodys[i].m_particles.data(), size * sizeof(Particle), cudaMemcpyHostToDevice);
 		cur += size;
 	}
 	checkCUDAError("ERROR: assemble particle array");
@@ -72,6 +74,9 @@ void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, c
 
 		//apply forces
 		particles[threadId].v += particles[threadId].invmass * forces * delta_t;
+
+		// Float zero threshold
+		particles[threadId].v = glm::trunc(particles[threadId].v*1000.0f) / 1000.0f;
 
 		//predict positions
 		//predictPosition[threadId] = particles[threadId].x + particles[threadId].v * delta_t;
@@ -107,6 +112,7 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 {
 	const int blockSizer = 192;
 	dim3 blockCountr((num_particles + blockSizer - 1) / blockSizer);
+	checkCUDAError("ERROR: LOL");
 
 	//apply forces
 	kernApplyForces << <blockCountr, blockSizer >> >(num_particles, dev_particles, dev_predictPosition, forces, delta_t);

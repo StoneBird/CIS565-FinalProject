@@ -15,8 +15,8 @@
 
 #define OBJ_ARR_SIZE 1
 
-#define GRAVITY (glm::vec3(0.0f,-1.0f,0.0f))
-#define DELTA_T (0.01f)
+#define GRAVITY (glm::vec3(0.0f,-9.8f,0.0f))
+#define DELTA_T (0.0167f)
 
 //-------------------------------
 //-------------MAIN--------------
@@ -45,6 +45,7 @@ int main(int argc, char **argv) {
 		// Rigid body sampling
 		//rigid_body[0].setScale(glm::vec3(0.4f, 0.4f, 0.4f));
 		rigid_body[0].setTranslate(glm::vec3(0.0f, 0.0f, 0.0f));
+		rigid_body[0].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
 		rigid_body[0].initObj(argv[1]);
 		rigid_body[0].initParticles(10);
 
@@ -250,7 +251,6 @@ void samplingTest_InitVAO()
 
 	g_vertex_buffer_data = (GLfloat*)malloc(all_particles.size() * sizeof(GLfloat));
 	std::copy(all_particles.begin(), all_particles.end(), g_vertex_buffer_data);
-	
 	
 	GLuint VertexArrayID[1];
 	glGenVertexArrays(1, VertexArrayID);
