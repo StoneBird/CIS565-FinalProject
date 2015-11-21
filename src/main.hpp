@@ -134,6 +134,10 @@ void samplingTest_InitVAO();
 void samplingTest_InitShaders(GLuint & program);
 
 
+
+void initSimulation();
+
+
 //program location
 GLuint u_modelView;
 GLuint u_projMatrix;

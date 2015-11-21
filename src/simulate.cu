@@ -23,10 +23,21 @@ static glm::vec3 * dev_predictPosition;
 static float * dev_positions;
 
 
+static float grid_length;
+static glm::ivec3 grid_resolution;
+static glm::vec3 grid_min_x;
+static glm::vec3 grid_max_x;
+
+static Voxel * dev_grid;
+static int * dev_particle_voxel_id;
 
 
 
-
+//void initSimulate(int num_rigidBody, RigidBody * rigidbodys, glm::vec3 bmin, glm::vec3 bmax, float particle_diameter)
+//{
+//	assembleParticleArray(num_rigidBody, rigidbodys);
+//	initUniformGrid(bmin, bmax, particle_diameter);
+//}
 
 
 
@@ -60,6 +71,72 @@ void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 	}
 	checkCUDAError("ERROR: assemble particle array");
 }
+
+
+void initUniformGrid(glm::vec3 bmin, glm::vec3 bmax , float diameter)
+{
+	//init size
+	grid_min_x = bmin;
+	grid_max_x = bmax;
+
+	grid_length = diameter;
+
+	grid_resolution = ceil( (grid_max_x - grid_min_x) / grid_length );
+
+
+	int grid_size = grid_resolution.x * grid_resolution.y * grid_resolution.z;
+	cudaMalloc(&dev_grid, grid_size * sizeof(Voxel));
+	cudaMemset(dev_grid, 0, grid_size * sizeof(Voxel));
+
+	cudaMalloc(&dev_particle_voxel_id, num_particles);
+}
+
+
+__device__
+glm::ivec3 gridMap(glm::vec3 x, glm::vec3 min_x, float grid_length)
+{
+	return (glm::ivec3)(floor((x - min_x) / grid_length));
+}
+
+__global__
+void updateVoxelIndex(int N , glm::ivec3 grid_resolution, glm::vec3 min_x, float grid_length, Particle * particles, Voxel * grid, int * ids )
+{
+	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if (threadId < N)
+	{
+		glm::ivec3 coordinate = gridMap(particles[threadId].x, min_x, grid_length);
+
+		//outof simulate area
+		if (coordinate.x >= grid_resolution.x || coordinate.x < 0
+			|| coordinate.y >= grid_resolution.y || coordinate.y < 0
+			|| coordinate.z >= grid_resolution.z || coordinate.z < 0)
+		{
+			//don't assign to vertex
+			printf("out of simulation region\n");	//test
+			return;
+		}
+
+
+
+		int voxel_id = coordinate.x * grid_resolution.y * grid_resolution.z
+			+ coordinate.y * grid_resolution.z
+			+ coordinate.z;
+
+		//not taken into account when n  > NUM_PRIACTICLE_VOXEL ? 
+		grid[voxel_id].particle_id[grid[voxel_id].num] = threadId;
+		grid[voxel_id].num += 1;
+
+		ids[threadId] = voxel_id;
+	}
+}
+
+
+
+
+
+
+
 
 
 
@@ -121,8 +198,17 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 	kernApplyForces << <blockCountr, blockSizer >> >(num_particles, dev_particles, dev_predictPosition, forces, delta_t);
 	checkCUDAError("ERROR: apply forces update");
 
-	//TODO: constraints...
+	//update voxel index
+	//clean
+	cudaMemset(dev_grid, 0, grid_resolution.x * grid_resolution.y * grid_resolution.z * sizeof(Voxel));
+	cudaMemset(dev_grid, 0, grid_resolution.x * grid_resolution.y * grid_resolution.z * sizeof(Voxel));
+	//update
+	updateVoxelIndex << <blockCountr, blockSizer >> >(num_particles, grid_resolution, grid_min_x, grid_length, dev_particles, dev_grid, dev_particle_voxel_id);
+	checkCUDAError("ERROR: updateVoxelIndex");
 
+
+	//TODO: constraints...
+	
 
 	//update to position float array
 	updatePositionFloatArray << <blockCountr, blockSizer >> >(num_particles, dev_particles, dev_positions);
@@ -148,6 +234,10 @@ void endSimulation()
 	cudaFree(dev_predictPosition);
 
 	cudaFree(dev_positions);
+
+
+	cudaFree(dev_grid);
+	cudaFree(dev_particle_voxel_id);
 }
 
 

@@ -71,7 +71,8 @@ int main(int argc, char **argv) {
 			rigid_body[i].initParticles(uniform_grid_length);
 		}
 		*/
-
+		
+		initSimulation();
 		samplingTest_InitVAO();
 		samplingTest_InitShaders(program);
 
@@ -237,10 +238,7 @@ void samplingTest_InitVAO()
 	GLfloat *g_vertex_buffer_data;
 
 
-	//cuda particle init simulate
-	assembleParticleArray(OBJ_ARR_SIZE, rigid_body);
-
-
+	
 
 	//init opengl vertex buffer
 	vector<float> all_particles;
@@ -299,6 +297,21 @@ void samplingTest_InitShaders(GLuint & program) {
 	u_color = glGetUniformLocation(program, "u_color");
 	u_lightDir = glGetUniformLocation(program, "u_lightDir");
 }
+
+
+
+//------siumulate---------
+const glm::vec3 AREA_BOX_MIN(-10.0f, -10.0f, -10.0f);
+const glm::vec3 AREA_BOX_MAX(10.0f, 10.0f, 10.0f);
+
+void initSimulation()
+{
+	//cuda particle init simulate
+	assembleParticleArray(OBJ_ARR_SIZE, rigid_body);
+
+	initUniformGrid(AREA_BOX_MIN, AREA_BOX_MAX, uniform_grid_length);
+}
+
 
 ///////////////////////////////////////////////////////
 
