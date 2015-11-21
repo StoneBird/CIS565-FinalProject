@@ -99,13 +99,13 @@ glm::ivec3 gridMap(glm::vec3 x, glm::vec3 min_x, float grid_length)
 }
 
 __global__
-void updateVoxelIndex(int N , glm::ivec3 grid_resolution, glm::vec3 min_x, float grid_length, Particle * particles, Voxel * grid, int * ids )
+void updateVoxelIndex(int N , glm::ivec3 grid_resolution, glm::vec3 min_x, float grid_length, glm::vec3 * particlePositions, Voxel * grid, int * ids )
 {
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
 
 	if (threadId < N)
 	{
-		glm::ivec3 coordinate = gridMap(particles[threadId].x, min_x, grid_length);
+		glm::ivec3 coordinate = gridMap(particlePositions[threadId], min_x, grid_length);
 
 		//outof simulate area
 		if (coordinate.x >= grid_resolution.x || coordinate.x < 0
@@ -133,14 +133,6 @@ void updateVoxelIndex(int N , glm::ivec3 grid_resolution, glm::vec3 min_x, float
 
 
 
-
-
-
-
-
-
-
-
 __global__
 void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, const glm::vec3 forces, const float delta_t)
 {
@@ -155,37 +147,32 @@ void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, c
 		particles[threadId].v += particles[threadId].invmass * forces * delta_t;
 
 		//predict positions
-		//predictPosition[threadId] = particles[threadId].x + particles[threadId].v * delta_t;
+		predictPosition[threadId] = particles[threadId].x + particles[threadId].v * delta_t;
 
 		//test TODO delete this
-		particles[threadId].x = particles[threadId].x + particles[threadId].v * delta_t;
+		//particles[threadId].x = particles[threadId].x + particles[threadId].v * delta_t;
 	}
 }
 
 
 
 __global__
-void updatePositionFloatArray(int N, Particle * particles, float * positions)
+void updatePositionFloatArray(int N, glm::vec3 * predictions, Particle * particles, float * positions)
 {
 	//N = num of particles
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
 
 	if (threadId < N)
 	{
-		// Particle sleeping example
+		// Particle sleeping
 		// Truncate super small values so avoid if-statement
-		//positions[3 * threadId] = positions[3 * threadId] + glm::trunc((particles[threadId]-positions[3 * threadId])*1000.0f) / 1000.0f;
+		particles[threadId].x = particles[threadId].x + glm::trunc((predictions[threadId]-particles[threadId].x)*100000.0f) / 100000.0f;
 
 		positions[3 * threadId] = particles[threadId].x.x;
 		positions[3 * threadId + 1] = particles[threadId].x.y;
 		positions[3 * threadId + 2] = particles[threadId].x.z;
 	}
 }
-
-
-
-
-
 
 
 void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer)
@@ -203,7 +190,7 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 	cudaMemset(dev_grid, 0, grid_resolution.x * grid_resolution.y * grid_resolution.z * sizeof(Voxel));
 	cudaMemset(dev_grid, 0, grid_resolution.x * grid_resolution.y * grid_resolution.z * sizeof(Voxel));
 	//update
-	updateVoxelIndex << <blockCountr, blockSizer >> >(num_particles, grid_resolution, grid_min_x, grid_length, dev_particles, dev_grid, dev_particle_voxel_id);
+	updateVoxelIndex << <blockCountr, blockSizer >> >(num_particles, grid_resolution, grid_min_x, grid_length, dev_predictPosition, dev_grid, dev_particle_voxel_id);
 	checkCUDAError("ERROR: updateVoxelIndex");
 
 
@@ -211,7 +198,7 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 	
 
 	//update to position float array
-	updatePositionFloatArray << <blockCountr, blockSizer >> >(num_particles, dev_particles, dev_positions);
+	updatePositionFloatArray << <blockCountr, blockSizer >> >(num_particles, dev_predictPosition, dev_particles, dev_positions);
 	checkCUDAError("ERROR: copy to dev_position");
 
 	cudaMemcpy(opengl_buffer, dev_positions, 3 * num_particles * sizeof(float), cudaMemcpyDeviceToHost);
