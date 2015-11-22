@@ -157,6 +157,72 @@ void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, c
 	}
 }
 
+
+__device__
+void hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,glm::vec3 * predict_positions, Particle * particles, Voxel * grid)
+{
+	if (voxel_id < 0 || voxel_id >= num_voxel)
+	{
+		//voxel_id is invalid
+		return;
+	}
+
+	for (int i = 0; i < grid[voxel_id].num; i++)
+	{
+		if (grid[voxel_id].particle_id[i] > particle_id)
+		{
+			glm::vec3 d = predict_positions[particle_id] - predict_positions[grid[voxel_id].particle_id[i]];
+
+			if (glm::dot(d, d) < diameter * diameter - 0.001f)
+			{
+				//TODO: there's a collision
+				//generate constraint
+
+				//test
+				predict_positions[particle_id] += 0.5f * d;
+				predict_positions[grid[voxel_id].particle_id[i]] -= 0.5f * d;
+				//printf("%f,%f,collision\t", glm::length(d), diameter);
+
+			}
+		}
+	}
+}
+
+
+__global__
+void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
+	, glm::vec3 * predictPositions, Particle * particles,Voxel * grid, int * ids)
+{
+	//only detect collision with particle whose id is larger
+
+	int particle_id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if (particle_id < N)
+	{
+		int voxel_id = ids[particle_id];
+
+		
+		//hitTest particles in neighbour voxel
+
+
+		for (int x = -1; x <= 1; x++)
+		{
+			for (int y = -1; y <= 1; y++)
+			{
+				for (int z = -1; z <= 1; z++)
+				{
+					hitTestVoxel(num_voxel, diameter, particle_id,
+						voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
+						predictPositions, particles, grid);
+				}
+			}
+		}
+
+
+	}
+}
+
+
 __global__
 void solveRigidBody(){
 	// Collision detection & reaction (get particle force)
@@ -201,11 +267,18 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 
 	//update voxel index
 	//clean
-	cudaMemset(dev_grid, 0, grid_resolution.x * grid_resolution.y * grid_resolution.z * sizeof(Voxel));
-	cudaMemset(dev_grid, 0, grid_resolution.x * grid_resolution.y * grid_resolution.z * sizeof(Voxel));
+	int num_voxel = grid_resolution.x * grid_resolution.y * grid_resolution.z;
+	cudaMemset(dev_grid, 0, num_voxel * sizeof(Voxel));
+	cudaMemset(dev_particle_voxel_id, 0, num_voxel * sizeof(Voxel));
+
 	//update
 	updateVoxelIndex << <blockCountr, blockSizer >> >(num_particles, grid_resolution, grid_min_x, grid_length, dev_predictPosition, dev_grid, dev_particle_voxel_id);
 	checkCUDAError("ERROR: updateVoxelIndex");
+
+	//detect collisions and generate collision constraints
+	handleCollision << <blockCountr, blockSizer >> >(num_particles, num_voxel, grid_length,
+		grid_resolution, dev_predictPosition,dev_particles, dev_grid, dev_particle_voxel_id);
+	checkCUDAError("ERROR: handle collision");
 
 	// Rigid body (partilce centric; one single kernel)
 	solveRigidBody << <blockCountr, blockSizer>> >();
