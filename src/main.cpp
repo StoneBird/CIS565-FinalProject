@@ -638,7 +638,7 @@ void mouseMotionCallback(GLFWwindow* window, double xpos, double ypos)
 
 void mouseWheelCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
-	const double s_s = 0.02;
+	const double s_s = 0.1;
 
 	z_trans += -s_s * yoffset;
 

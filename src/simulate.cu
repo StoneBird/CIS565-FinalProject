@@ -179,8 +179,8 @@ void hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,
 				//generate constraint
 
 				//test
-				predict_positions[particle_id] += 0.5f * d;
-				predict_positions[grid[voxel_id].particle_id[i]] -= 0.5f * d;
+				predict_positions[particle_id] += 0.5f * d * particles[particle_id].invmass;
+				predict_positions[grid[voxel_id].particle_id[i]] -= 0.5f * d * particles[grid[voxel_id].particle_id[i]].invmass;
 				//printf("%f,%f,collision\t", glm::length(d), diameter);
 
 			}
