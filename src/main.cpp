@@ -163,6 +163,7 @@ void samplingTest_Loop()
 
 		// Granulate simulation steps to compensate frame rate cap
 		// 0.0167 is 60 FPS
+		// More steps can reduce tunneling effect (due to high velocity and thin object)
 		for (int i = 0; i < 0.0167 / DELTA_T; i++){
 			simulate(GRAVITY, DELTA_T, v_buffer_ptr);
 		}

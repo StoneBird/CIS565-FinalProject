@@ -171,26 +171,29 @@ void hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,
 		//voxel_id is invalid
 		return;
 	}
-
+	// Delta X for collision
 	glm::vec3 delta_pos(0.0);
+	// Average count
 	int n = 0;
 	for (int i = 0; i < grid[voxel_id].num; i++)
 	{
 		if (particles[grid[voxel_id].particle_id[i]].phase != particles[particle_id].phase)
 		{
-			//points to the other particle
+			// Distance vector from particle i to particle j (on particle centers)
 			glm::vec3 d = predict_positions[grid[voxel_id].particle_id[i]] - predict_positions[particle_id];
-
+			// If particles overlap
 			if (glm::length(d) <= diameter)
 			{
-				// Delta X for collision; fix particle overlap
 				n++;
+				// Momentum weighing based on particle mass
+				// Not true momentum, but approximation
 				float momentWeight = -particles[particle_id].invmass / (particles[particle_id].invmass + particles[grid[voxel_id].particle_id[i]].invmass);
-				delta_pos += momentWeight * glm::normalize(d) * abs(diameter - glm::length(d));
+				// Move particle i along the vector so that i and j don't overlap, but just about to collide
+				delta_pos += momentWeight * glm::normalize(d) * (diameter - glm::length(d));
 			}
 		}
 	}
-	// Apply particle position fix
+	// Apply average delta X position (treat as results of constraint solver)
 	if (n > 0){
 		predict_positions[particle_id] += delta_pos / (float)n;
 	}
@@ -208,7 +211,7 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 	{
 		int voxel_id = ids[particle_id];
 
-		// Collision detection & reaction (get particle force)
+		// Collision detection & reaction; simplified SDF constraint
 		//hitTest particles in neighbour voxel
 		for (int x = -1; x <= 1; x++)
 		{
@@ -261,6 +264,7 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 	//clean
 	int num_voxel = grid_resolution.x * grid_resolution.y * grid_resolution.z;
 	cudaMemset(dev_grid, 0, num_voxel * sizeof(Voxel));
+	// FIXME below memset breaks updateVoxelIndex; not sure why
 	//cudaMemset(dev_particle_voxel_id, 0, num_voxel * sizeof(Voxel));
 
 	//update
