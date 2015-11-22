@@ -43,6 +43,21 @@ static int * dev_particle_voxel_id;
 //	initUniformGrid(bmin, bmax, particle_diameter);
 //}
 
+__global__
+void transformParticlePositionPerRigidBody(int base,int size,Particle * particles,glm::mat4 mat){
+	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadId < size){
+		
+		threadId += base;
+
+		glm::vec4 tmp = mat * glm::vec4(particles[threadId].x, 1.0f);
+		tmp /= tmp.w;
+		particles[threadId].x = glm::vec3(tmp.x, tmp.y, tmp.z);
+
+	}
+}
+
+
 void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 {
 	num_particles = 0;
@@ -60,12 +75,20 @@ void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 	cudaMemset(dev_positions, 0, 3 * num_particles * sizeof(float));
 	checkCUDAError("ERROR: cudaMalloc");
 
+
+	const int blockSizer = 192;
 	int cur = 0;
 	for (int i = 0; i < num_rigidBody; i++)
 	{
 		// Particle objects
 		int size = rigidbodys[i].m_particles.size();
 		cudaMemcpy(dev_particles + cur, rigidbodys[i].m_particles.data(), size * sizeof(Particle), cudaMemcpyHostToDevice);
+		
+		// translations and rotations of the rigid body should be done here
+		dim3 blockCountr((size + blockSizer - 1) / blockSizer);
+		transformParticlePositionPerRigidBody << <blockCountr, blockSizer >> >(cur, size, dev_particles, rigidbodys[i].getTransformMatrix());
+
+
 		cur += size;
 
 		// TODO copy position values too so that particle sleeping works
@@ -162,7 +185,7 @@ void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, c
 }
 
 
-//return sum of forces
+
 __device__
 void hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,glm::vec3 * predict_positions, Particle * particles, Voxel * grid)
 {
@@ -212,7 +235,7 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 		int voxel_id = ids[particle_id];
 
 		// Collision detection & reaction; simplified SDF constraint
-		//hitTest particles in neighbour voxel
+		// hitTest particles in neighbour voxel
 		for (int x = -1; x <= 1; x++)
 		{
 			for (int y = -1; y <= 1; y++)

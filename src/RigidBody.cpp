@@ -36,6 +36,11 @@ void RigidBody::setPhase(int p){
 	m_phase = p;
 }
 
+glm::mat4 RigidBody::getTransformMatrix()
+{
+	return (glm::translate(m_translate) * m_rotation);
+}
+
 
 bool RigidBody::initObj(const string & filename)
 {
@@ -120,7 +125,7 @@ void RigidBody::initParticles(float grid_size)
 	// --> Per object depth peeling
 	// --> Stream compaction
 	// --> Copy array of Particle to host
-	sampleParticles(m_particles, m_particle_pos, glm::translate(m_translate) * m_rotation, m_init_velocity, m_mass_scale, m_phase);
+	sampleParticles(m_particles, m_particle_pos, glm::mat4(), m_init_velocity, m_mass_scale, m_phase);
 
 	/*
 	printf("%f %f %f\n", m_particles[0].x.x, m_particles[0].x.y, m_particles[0].x.z);

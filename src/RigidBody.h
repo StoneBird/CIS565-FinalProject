@@ -48,7 +48,7 @@ public:
 
 	//getter methods
 	float getGridLength(){ return m_grid_length; }
-
+	glm::mat4 getTransformMatrix();
 
 
 

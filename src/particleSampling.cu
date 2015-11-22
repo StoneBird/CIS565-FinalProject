@@ -179,13 +179,11 @@ void transformParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, i
 		glm::vec3 pos = p_in[threadId].x;
 		int pIdx = threadId * 3;
 
-		//p_out[threadId].x = pos+offset;
-		//pos_out[pIdx] = pos.x+offset.x;
-		//pos_out[pIdx + 1] = pos.y+offset.y;
-		//pos_out[pIdx + 2] = pos.z+offset.z;
+		//WARNING: transform has been moved to initSimulate
 		glm::vec4 tmp = mat * glm::vec4(pos, 1.0f);
 		tmp /= tmp.w;
 		p_out[threadId].x = glm::vec3( tmp.x,tmp.y,tmp.z );
+
 
 		// Use rigid body's velocity
 		p_out[threadId].v = body_init_velocity;
