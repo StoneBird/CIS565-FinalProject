@@ -117,8 +117,6 @@ void RigidBody::initParticles(float grid_size)
 	samplingInit(m_shapes.at(0).mesh.indices.size(), m_resolution, m_grid_length);
 	samplingSetBuffers(m_shapes.at(0).mesh.positions.data(), m_shapes.at(0).mesh.indices.data());
 
-	printf("%d\n", m_phase);
-
 	// --> Per object depth peeling
 	// --> Stream compaction
 	// --> Copy array of Particle to host

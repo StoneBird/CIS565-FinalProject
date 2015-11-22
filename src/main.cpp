@@ -161,6 +161,8 @@ void samplingTest_Loop()
 		// Do simulation & animations
 		//v_buffer_ptr[0] += 0.01f;
 
+		// Granulate simulation steps to compensate frame rate cap
+		// 0.0167 is 60 FPS
 		for (int i = 0; i < 0.0167 / DELTA_T; i++){
 			simulate(GRAVITY, DELTA_T, v_buffer_ptr);
 		}
