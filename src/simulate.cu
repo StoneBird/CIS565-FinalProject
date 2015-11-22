@@ -188,7 +188,7 @@ void hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,
 				// Momentum weighing based on particle mass
 				// Not true momentum, but approximation
 				float momentWeight = -particles[particle_id].invmass / (particles[particle_id].invmass + particles[grid[voxel_id].particle_id[i]].invmass);
-				// Move particle i along the vector so that i and j don't overlap, but just about to collide
+				// Move particle i along the vector so that i and j are in the post-collision states
 				delta_pos += momentWeight * glm::normalize(d) * (diameter - glm::length(d));
 			}
 		}
