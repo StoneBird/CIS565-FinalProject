@@ -164,7 +164,7 @@ void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, c
 
 //return sum of forces
 __device__
-glm::vec3 hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,glm::vec3 * predict_positions, Particle * particles, Voxel * grid)
+void hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,glm::vec3 * predict_positions, Particle * particles, Voxel * grid)
 {
 	if (voxel_id < 0 || voxel_id >= num_voxel)
 	{
@@ -172,44 +172,28 @@ glm::vec3 hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel
 		return;
 	}
 
-	glm::vec3 F(0.0);
+	glm::vec3 delta_pos(0.0);
+	int n = 0;
 	for (int i = 0; i < grid[voxel_id].num; i++)
 	{
-		if (particles[grid[voxel_id].particle_id[i]].phase != particles[particle_id].phase
-			 )//&& grid[voxel_id].particle_id[i] > particle_id)
+		if (particles[grid[voxel_id].particle_id[i]].phase != particles[particle_id].phase)
 		{
 			//points to the other particle
 			glm::vec3 d = predict_positions[grid[voxel_id].particle_id[i]] - predict_positions[particle_id];
 
-			if (glm::dot(d, d) < diameter * diameter - 0.001f)
+			if (glm::length(d) <= diameter)
 			{
-				//TODO: there's a collision
-				//generate constraint
-
-				//repulsive force
-				glm::vec3 v = particles[grid[voxel_id].particle_id[i]].v - particles[particle_id].v;
-
-				float r = glm::length(d);
-				glm::vec3 fis = -K_SPRING_COEFF * (diameter - r) * d / r;
-				glm::vec3 fid = N_DAMPING_COEFF * v;
-				//? tangent speed
-				glm::vec3 fit = K_SHEAR_COEFF * particles[particle_id].v / glm::length(particles[particle_id].v) * glm::dot(particles[grid[voxel_id].particle_id[i]].v, particles[particle_id].v);
-
-
-				F += (fis + fid + fit);
-				
-
-
-				//test
-				//predict_positions[particle_id] -= 0.5f * d * particles[particle_id].invmass;
-				//predict_positions[grid[voxel_id].particle_id[i]] += 0.5f * d * particles[grid[voxel_id].particle_id[i]].invmass;
-				//printf("%f,%f,collision\t", glm::length(d), diameter);
-
+				// Delta X for collision; fix particle overlap
+				n++;
+				float momentWeight = -particles[particle_id].invmass / (particles[particle_id].invmass + particles[grid[voxel_id].particle_id[i]].invmass);
+				delta_pos += momentWeight * glm::normalize(d) * abs(diameter - glm::length(d));
 			}
 		}
 	}
-	return F;
-
+	// Apply particle position fix
+	if (n > 0){
+		predict_positions[particle_id] += delta_pos / (float)n;
+	}
 }
 
 
@@ -224,38 +208,21 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 	{
 		int voxel_id = ids[particle_id];
 
-		
+		// Collision detection & reaction (get particle force)
 		//hitTest particles in neighbour voxel
-
-		glm::vec3 F(0.0);
-
 		for (int x = -1; x <= 1; x++)
 		{
 			for (int y = -1; y <= 1; y++)
 			{
 				for (int z = -1; z <= 1; z++)
 				{
-					F += hitTestVoxel(num_voxel, diameter, particle_id,
+					hitTestVoxel(num_voxel, diameter, particle_id,
 						voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
 						predictPositions, particles, grid);
 				}
 			}
 		}
-
-		particles[particle_id].v += F * particles[particle_id].invmass * delta_t;
-		predictPositions[particle_id] += F * particles[particle_id].invmass * delta_t * delta_t;
 	}
-}
-
-
-__global__
-void solveRigidBody(){
-	// Collision detection & reaction (get particle force)
-	// Compute momenta; linear and angular
-	// Delta X for collision
-	// Shape matching constraint
-	// Delta X for shape matching
-	// Average and update
 }
 
 __global__
@@ -294,7 +261,7 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 	//clean
 	int num_voxel = grid_resolution.x * grid_resolution.y * grid_resolution.z;
 	cudaMemset(dev_grid, 0, num_voxel * sizeof(Voxel));
-	cudaMemset(dev_particle_voxel_id, 0, num_voxel * sizeof(Voxel));
+	//cudaMemset(dev_particle_voxel_id, 0, num_voxel * sizeof(Voxel));
 
 	//update
 	updateVoxelIndex << <blockCountr, blockSizer >> >(num_particles, grid_resolution, grid_min_x, grid_length, dev_predictPosition, dev_grid, dev_particle_voxel_id);
@@ -302,11 +269,12 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 
 	//detect collisions and generate collision constraints
 	handleCollision << <blockCountr, blockSizer >> >(num_particles, num_voxel, grid_length,
-		grid_resolution, dev_predictPosition,dev_particles, dev_grid, dev_particle_voxel_id, delta_t);
+		grid_resolution, dev_predictPosition, dev_particles, dev_grid, dev_particle_voxel_id, delta_t);
 	checkCUDAError("ERROR: handle collision");
 
-	// Rigid body (partilce centric; one single kernel)
-	solveRigidBody << <blockCountr, blockSizer>> >();
+	// Shape matching constraint
+	// Delta X for shape matching
+	// Average and update
 
 	//update to position float array
 	updatePositionFloatArray << <blockCountr, blockSizer >> >(num_particles, dev_predictPosition, dev_particles, dev_positions, delta_t);

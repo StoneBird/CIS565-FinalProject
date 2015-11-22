@@ -32,6 +32,10 @@ void RigidBody::setMassScale(float s){
 	m_mass_scale = s;
 }
 
+void RigidBody::setPhase(int p){
+	m_phase = p;
+}
+
 
 bool RigidBody::initObj(const string & filename)
 {
@@ -113,10 +117,12 @@ void RigidBody::initParticles(float grid_size)
 	samplingInit(m_shapes.at(0).mesh.indices.size(), m_resolution, m_grid_length);
 	samplingSetBuffers(m_shapes.at(0).mesh.positions.data(), m_shapes.at(0).mesh.indices.data());
 
+	printf("%d\n", m_phase);
+
 	// --> Per object depth peeling
 	// --> Stream compaction
 	// --> Copy array of Particle to host
-	sampleParticles(m_particles, m_particle_pos, glm::translate(m_translate) * m_rotation, m_init_velocity, m_mass_scale);
+	sampleParticles(m_particles, m_particle_pos, glm::translate(m_translate) * m_rotation, m_init_velocity, m_mass_scale, m_phase);
 
 	/*
 	printf("%f %f %f\n", m_particles[0].x.x, m_particles[0].x.y, m_particles[0].x.z);

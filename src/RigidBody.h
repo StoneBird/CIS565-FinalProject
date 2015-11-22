@@ -33,6 +33,9 @@ protected:
 	// obj particle mass scale
 	float m_mass_scale;
 
+	// obj phase (group id)
+	int m_phase;
+
 public:
 	//particle
 	vector<Particle> m_particles;
@@ -67,6 +70,8 @@ public:
 	void setMassScale(float);
 
 	void setInitVelocity(glm::vec3);
+
+	void setPhase(int);
 
 	
 };
