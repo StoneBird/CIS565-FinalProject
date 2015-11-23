@@ -20,7 +20,7 @@
 #define GRAVITY (glm::vec3(0.0f,-9.8f,0.0f))
 #define FPS 120.0f
 #define FRAME_TIME 1.0f/FPS
-#define SIMU_STEP 10
+#define SIMU_STEP 1
 #define DELTA_T FRAME_TIME/SIMU_STEP
 
 //-------------------------------
@@ -52,7 +52,8 @@ int main(int argc, char **argv) {
 		rigid_body[0].setPhase(0);
 		rigid_body[0].setTranslate(glm::vec3(0.0f, 0.0f, 0.0f));
 		//rigid_body[0].setRotation(glm::rotate(5.0f, glm::vec3(1.0f, 0.0f, 0.0f)));
-		rigid_body[0].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
+		rigid_body[0].setInitVelocity(glm::vec3(0.0f, 0.8f, 0.0f));
+		//rigid_body[0].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
 		rigid_body[0].setMassScale(1.0f);
 		rigid_body[0].initObj(argv[1]);
 		rigid_body[0].initParticles(10);

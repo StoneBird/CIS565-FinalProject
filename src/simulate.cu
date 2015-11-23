@@ -315,6 +315,7 @@ void setAValue(int base, int N, glm::mat3 * Apq, glm::vec3 * x0 , glm::vec3 * pr
 	
 }
 
+
 __global__
 void shapeMatching(int base, int size, glm::vec3 * delta_positions, glm::vec3 * predictions, glm::vec3 *x0, glm::vec3 cm0, glm::vec3 cm, glm::mat3 * dev_Apq_ptr, int * dev_n){
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
@@ -354,6 +355,18 @@ void applyDelta(glm::vec3 * predictions, const glm::vec3 * delta, const int * n,
 		// Average and update
 		float nd = n[threadId] == 0 ? 1.0 : (float)n[threadId];
 		predictions[threadId] += delta[threadId] / nd;
+	}
+}
+
+__global__
+void applyDeltaForCM(glm::vec3 * predictions, const glm::vec3 * delta, const int * n, const int num_particles, int base){
+	//for one rigid body
+	//predictions here are temporary, calculating for cm only
+	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadId < num_particles){
+		// Average and update
+		float nd = n[threadId + base] == 0 ? 1.0 : (float)n[threadId + base];
+		predictions[threadId] += delta[threadId + base] / nd;
 	}
 }
 
@@ -433,6 +446,11 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 		//cudaMemcpy(dev_px_ptr, dev_predictPosition + base, size * sizeof(glm::vec3), cudaMemcpyDeviceToDevice);
 		thrust::device_ptr<glm::vec3> dev_predict_base(dev_predictPosition);
 		thrust::copy_n(dev_predict_base + base, size, dev_px.begin());
+
+		//update collision delta for calculating cm
+		glm::vec3 * dev_px_ptr = thrust::raw_pointer_cast(&dev_px[0]);
+		applyDeltaForCM << <blockCountrPerRigidBody, blockSizer >> >(dev_px_ptr, dev_deltaPosition, dev_n, size, base);
+
 
 		glm::vec3 cm = thrust::reduce(dev_px.begin(), dev_px.end(), glm::vec3(0.0), thrust::plus<glm::vec3>());
 		cm = cm / ((float)size);
