@@ -11,6 +11,7 @@ set(SOURCE_FILES
     "objloader.cpp"
     "tiny_obj_loader.h"
     "tiny_obj_loader.cc"
+	"svd3_cuda.h"
    )
 
 cuda_add_library(util

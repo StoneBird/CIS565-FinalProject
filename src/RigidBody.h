@@ -5,7 +5,6 @@
 #include <vector>
 #include <string>
 
-
 using namespace std;
 
 class RigidBody
@@ -49,6 +48,9 @@ public:
 
 	vector<float> m_particle_pos;
 
+	// Positions in rest config
+	vector<glm::vec3> m_x0;
+
 
 	RigidBody();
 
@@ -85,10 +87,3 @@ public:
 
 	
 };
-
-
-
-
-
-
-glm::mat3 polarDecomposite(glm::mat3 A);

@@ -3,11 +3,6 @@
 #include <iostream>
 #include "particleSampling.h"
 
-
-#include <Eigen/Dense>
-#include <Eigen/SVD>
-
-
 RigidBody::RigidBody()
 	:m_scale(1.0), m_translate(0.0)
 {
@@ -88,7 +83,7 @@ void RigidBody::initBoundingBox()
 					, shape.mesh.positions[3 * idx + 2]);
 
 				//all particle mass is identical
-				m_cm += pos;
+				//m_cm += pos;
 
 
 				m_min.x = min(m_min.x, pos.x);
@@ -137,17 +132,21 @@ void RigidBody::initParticles(float grid_size)
 	// --> Per object depth peeling
 	// --> Stream compaction
 	// --> Copy array of Particle to host
-	sampleParticles(m_particles, m_particle_pos, glm::mat4(), m_init_velocity, m_mass_scale, m_phase);
+	// Apply transformation before calculating center of mass
+	sampleParticles(m_particles, m_particle_pos, getTransformMatrix(), m_init_velocity, m_mass_scale, m_phase);
 
-	
+	int num_particle = m_particles.size();
+
 	// calculate center of mass
 	// cpu version
 	m_cm = glm::vec3(0.0);
-	int num_particle = m_particle_pos.size() / 3;
 	for (int i = 0; i < num_particle; i++)
 	{
 		glm::vec3 p(m_particle_pos.at(3 * i + 0), m_particle_pos.at(3 * i + 1), m_particle_pos.at(3 * i + 2));
 		m_cm += p;
+
+		// Initialize x0 (positions in rest config) at the same time
+		m_x0.push_back(m_particles[i].x);
 	}
 	m_cm /= (float)num_particle;
 
@@ -155,38 +154,4 @@ void RigidBody::initParticles(float grid_size)
 	printf("%f %f %f\n", m_particles[0].x.x, m_particles[0].x.y, m_particles[0].x.z);
 	printf("%f %f %f\n", m_particle_pos[0], m_particle_pos[1], m_particle_pos[2]);
 	*/
-}
-
-
-
-
-
-
-glm::mat3 polarDecomposite(glm::mat3 Ag)
-{
-	Eigen::Matrix3f A;
-	for (int i = 0; i < 3; i++)
-	{
-		for (int j = 0; j < 3; j++)
-		{
-			A(i, j) = Ag[i][j];
-		}
-	}
-	Eigen::Affine3f T(A);
-	Eigen::Matrix3f mR, mS;
-	glm::mat3 R;
-
-	mR = T.rotation();
-
-	//T.computeRotationScaling(&mR, &mS);
-	for (int i = 0; i < 3; i++)
-	{
-		for (int j = 0; j < 3; j++)
-		{
-			R[i][j] = mR(i, j);
-		}
-	}
-	
-	//std::cout << mR << endl << endl;
-	return R;
 }

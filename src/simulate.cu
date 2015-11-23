@@ -15,8 +15,7 @@
 #include "simulate.h"
 #include <vector>
 
-//#include <Eigen/Dense>
-//#include "Eigen/SVD"
+#include <util/svd3_cuda.h>
 
 #define K_SPRING_COEFF (0.1f)
 #define N_DAMPING_COEFF (0.0f)
@@ -26,6 +25,9 @@ static int num_rigidBodies;
 static int num_particles;
 static Particle * dev_particles;
 static glm::vec3 * dev_predictPosition;
+static glm::vec3 * dev_deltaPosition;
+
+static int * dev_n;
 
 static float * dev_positions;
 
@@ -60,6 +62,7 @@ __constant__ static glm::vec3* dev_particle_x0;
 //	initUniformGrid(bmin, bmax, particle_diameter);
 //}
 
+/*
 __global__
 void transformParticlePositionPerRigidBody(int base,int size, Particle * particles, glm::vec3* x0,glm::mat4 mat){
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
@@ -75,6 +78,7 @@ void transformParticlePositionPerRigidBody(int base,int size, Particle * particl
 
 	}
 }
+*/
 
 
 void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
@@ -93,6 +97,10 @@ void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 	cudaMalloc(&dev_predictPosition, num_particles * sizeof(glm::vec3));
 	cudaMemset(dev_predictPosition, 0, num_particles * sizeof(glm::vec3));
 
+	cudaMalloc(&dev_deltaPosition, num_particles * sizeof(glm::vec3));
+
+	cudaMalloc(&dev_n, num_particles * sizeof(int));
+
 	cudaMalloc(&dev_positions, 3 * num_particles * sizeof(float));
 	cudaMemset(dev_positions, 0, 3 * num_particles * sizeof(float));
 	checkCUDAError("ERROR: cudaMalloc");
@@ -100,27 +108,21 @@ void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 	
 	cudaMalloc(&dev_particle_x0, num_particles * sizeof(glm::vec3));
 	
-
-	const int blockSizer = 192;
 	int cur = 0;
 	//glm::vec3 * hst_cm0 = new glm::vec3[num_rigidBody];
 
 	for (int i = 0; i < num_rigidBody; i++)
 	{
 		hst_cm0[i] = rigidbodys[i].getCenterOfMass();
+
 		// Particle objects
 		int size = rigidbodys[i].m_particles.size();
 		cudaMemcpy(dev_particles + cur, rigidbodys[i].m_particles.data(), size * sizeof(Particle), cudaMemcpyHostToDevice);
-		
-		// translations and rotations of the rigid body should be done here
-		dim3 blockCountr((size + blockSizer - 1) / blockSizer);
-		transformParticlePositionPerRigidBody << <blockCountr, blockSizer >> >(cur, size, dev_particles, dev_particle_x0, rigidbodys[i].getTransformMatrix());
 
-		
+		// Initialize rest config positions
+		cudaMemcpy(dev_particle_x0 + cur, rigidbodys[i].m_x0.data(), size * sizeof(glm::vec3), cudaMemcpyHostToDevice);
 
 		cur += size;
-
-		// TODO copy position values too so that particle sleeping works
 	}
 
 	//cudaMalloc(&dev_rigid_body_cm_0, num_rigidBody * sizeof(glm::vec3));
@@ -153,6 +155,10 @@ void endSimulation()
 	cudaFree(dev_particles);
 
 	cudaFree(dev_predictPosition);
+
+	cudaFree(dev_deltaPosition);
+
+	cudaFree(dev_n);
 
 	cudaFree(dev_positions);
 
@@ -230,7 +236,8 @@ void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, c
 
 
 __device__
-void hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,glm::vec3 * predict_positions, Particle * particles, Voxel * grid)
+void hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,glm::vec3 * predict_positions, glm::vec3 * delta_positions,
+	Particle * particles, Voxel * grid, int * dev_n)
 {
 	if (voxel_id < 0 || voxel_id >= num_voxel)
 	{
@@ -260,15 +267,14 @@ void hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,
 		}
 	}
 	// Apply average delta X position (treat as results of constraint solver)
-	if (n > 0){
-		predict_positions[particle_id] += delta_pos / (float)n;
-	}
+	delta_positions[particle_id] += delta_pos;
+	dev_n[particle_id] += n;
 }
 
 
 __global__
 void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
-	, glm::vec3 * predictPositions, Particle * particles,Voxel * grid, int * ids, float delta_t)
+	, glm::vec3 * predictPositions, glm::vec3 * deltaPositions, Particle * particles,Voxel * grid, int * ids, float delta_t, int * dev_n)
 {
 
 	int particle_id = blockDim.x * blockIdx.x + threadIdx.x;
@@ -287,7 +293,7 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 				{
 					hitTestVoxel(num_voxel, diameter, particle_id,
 						voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
-						predictPositions, particles, grid);
+						predictPositions, deltaPositions, particles, grid, dev_n);
 				}
 			}
 		}
@@ -296,7 +302,7 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 
 
 __global__
-void setAValue(int base,int N, glm::mat3 * Apq, Particle * particles, glm::vec3 * predict_x, glm::vec3 cm, glm::vec3* x0, glm::vec3 cm0)
+void setAValue(int base, int N, glm::mat3 * Apq, glm::vec3 * x0 , glm::vec3 * predict_x, glm::vec3 cm, glm::vec3 cm0)
 {
 	int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -305,29 +311,51 @@ void setAValue(int base,int N, glm::mat3 * Apq, Particle * particles, glm::vec3 
 		//treat every particle in one rigid body has the same mass
 		Apq[tid] = glm::outerProduct(predict_x[tid + base] - cm
 			, x0[tid + base] - cm0);
-
-		//Aqq[tid] = glm::outerProduct(x0[tid + base] - cm0
-		//	, x0[tid + base] - cm0);
 	}
 	
 }
 
 __global__
-void shapeMatching(int base, int size, glm::vec3 * predict_x, glm::vec3* x0, glm::vec3 cm0, glm::vec3 cm,glm::mat3 R){
+void shapeMatching(int base, int size, glm::vec3 * delta_positions, glm::vec3 * predictions, glm::vec3 *x0, glm::vec3 cm0, glm::vec3 cm, glm::mat3 * dev_Apq_ptr, int * dev_n){
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadId < size){
+		glm::mat3 A(0.0f), U(0.0f), S(0.0f), V(0.0f), R(0.0f);
+		for (int i = threadId; i < size; i++){
+			A += dev_Apq_ptr[i];
+		}
 
 		threadId += base;
 
-		predict_x[threadId] = R * (x0[threadId] - cm0) + cm;
+		// SVD code https://github.com/ericjang/svd3
+		/*
+		svd(a11, a12, a13, a21, a22, a23, a31, a32, a33,
+		u11, u12, u13, u21, u22, u23, u31, u32, u33,
+		s11, s12, s13, s21, s22, s23, s31, s32, s33,
+		v11, v12, v13, v21, v22, v23, v31, v32, v33);
+		*/
+		// GLM is column major
+		svd(A[0][0], A[1][0], A[2][0], A[0][1], A[1][1], A[2][1], A[0][2], A[1][2], A[2][2],
+			U[0][0], U[1][0], U[2][0], U[0][1], U[1][1], U[2][1], U[0][2], U[1][2], U[2][2],
+			S[0][0], S[1][0], S[2][0], S[0][1], S[1][1], S[2][1], S[0][2], S[1][2], S[2][2],
+			V[0][0], V[1][0], V[2][0], V[0][1], V[1][1], V[2][1], V[0][2], V[1][2], V[2][2]);
 
+		R = U * glm::transpose(V);
 
+		// Delta X for shape matching
+		delta_positions[threadId] += R * (x0[threadId] - cm0) + cm - predictions[threadId];
+		dev_n[threadId]++;
 	}
 }
 
-
-
-
+__global__
+void applyDelta(glm::vec3 * predictions, const glm::vec3 * delta, const int * n, const int num_particles){
+	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadId < num_particles){
+		// Average and update
+		float nd = n[threadId] == 0 ? 1.0 : (float)n[threadId];
+		predictions[threadId] += delta[threadId] / nd;
+	}
+}
 
 __global__
 void updatePositionFloatArray(int N, glm::vec3 * predictions, Particle * particles, float * positions, const float delta_t)
@@ -353,6 +381,9 @@ void updatePositionFloatArray(int N, glm::vec3 * predictions, Particle * particl
 
 void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer, RigidBody * rigidBody)
 {
+	cudaMemset(dev_deltaPosition, 0, num_particles * sizeof(glm::vec3));
+	cudaMemset(dev_n, 0, num_particles * sizeof(int));
+
 	const int blockSizer = 192;
 	dim3 blockCountr((num_particles + blockSizer - 1) / blockSizer);
 	checkCUDAError("ERROR: LOL");
@@ -374,14 +405,10 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 
 	//detect collisions and generate collision constraints
 	handleCollision << <blockCountr, blockSizer >> >(num_particles, num_voxel, grid_length,
-		grid_resolution, dev_predictPosition, dev_particles, dev_grid, dev_particle_voxel_id, delta_t);
+		grid_resolution, dev_predictPosition, dev_deltaPosition, dev_particles, dev_grid, dev_particle_voxel_id, delta_t, dev_n);
 	checkCUDAError("ERROR: handle collision");
 
-
 	//---- Shape matching constraint --------
-	
-	
-	
 	int base = 0;
 	for (int i = 0; i < num_rigidBodies; i++)
 	{
@@ -391,7 +418,7 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 			continue;
 		}
 
-
+		
 		int size = rigidBody[i].m_particles.size();
 		dim3 blockCountrPerRigidBody((size + blockSizer - 1) / blockSizer);
 		
@@ -409,34 +436,21 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 
 		glm::vec3 cm = thrust::reduce(dev_px.begin(), dev_px.end(), glm::vec3(0.0), thrust::plus<glm::vec3>());
 		cm = cm / ((float)size);
-		
-
 
 		//calculate A matrix
-		setAValue << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_Apq_ptr, dev_particles, dev_predictPosition,
-			cm, dev_particle_x0, hst_cm0[i]);
-
-		glm::mat3 A_pq = thrust::reduce(dev_Apq.begin(), dev_Apq.end(), glm::mat3(0.0), thrust::plus<glm::mat3>());
-		//glm::mat3 A_qq = thrust::reduce(dev_Aqq.begin(), dev_Aqq.end(), glm::mat3(0.0), thrust::plus<glm::mat3>());
-
-
-		//calculate Rotation
-		glm::mat3 R;
-		
-		R = polarDecomposite(A_pq);
+		// Pre-process; calculate individual outer products
+		setAValue << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_Apq_ptr, dev_particle_x0, dev_predictPosition,
+			cm, hst_cm0[i]);
 
 		//modify predict positions
-		shapeMatching << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_predictPosition, dev_particle_x0, hst_cm0[i], cm, R);
+		// Also find A and R within the kernel
+		shapeMatching << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_deltaPosition, dev_predictPosition, dev_particle_x0, hst_cm0[i], cm, dev_Apq_ptr, dev_n);
 
 		//next rigid body
 		base += size;
 	}
 
-
-	//--------------------------------------
-
-	// Delta X for shape matching
-	// Average and update
+	applyDelta << <blockCountr, blockSizer >> >(dev_predictPosition, dev_deltaPosition, dev_n, num_particles);
 
 	//update to position float array
 	updatePositionFloatArray << <blockCountr, blockSizer >> >(num_particles, dev_predictPosition, dev_particles, dev_positions, delta_t);
