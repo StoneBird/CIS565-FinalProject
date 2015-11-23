@@ -19,7 +19,7 @@
 #define N_DAMPING_COEFF (0.0f)
 #define K_SHEAR_COEFF (0.0f)
 
-
+static int num_rigidBodies;
 static int num_particles;
 static Particle * dev_particles;
 static glm::vec3 * dev_predictPosition;
@@ -36,6 +36,20 @@ static Voxel * dev_grid;
 static int * dev_particle_voxel_id;
 
 
+//--------data for shape rematching--------------
+//struct RigidBodyWrapper
+//{
+//	int base;	// first particle id
+//	int size;	// size of particle
+//	glm::vec3 cm_0;		//center of mass of original
+//};
+//__constant__ static RigidBodyWrapper* dev_rigidBodyWrappers;
+glm::vec3 * hst_cm0 = NULL;
+//__constant__ static glm::vec3* dev_rigid_body_cm_0;	//center mass origin
+__constant__ static glm::vec3* dev_particle_x0;
+//static glm::vec3* dev_particle_x0;
+//-----------------------------------------------
+
 
 //void initSimulate(int num_rigidBody, RigidBody * rigidbodys, glm::vec3 bmin, glm::vec3 bmax, float particle_diameter)
 //{
@@ -44,11 +58,13 @@ static int * dev_particle_voxel_id;
 //}
 
 __global__
-void transformParticlePositionPerRigidBody(int base,int size,Particle * particles,glm::mat4 mat){
+void transformParticlePositionPerRigidBody(int base,int size, Particle * particles, glm::vec3* x0,glm::mat4 mat){
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadId < size){
 		
 		threadId += base;
+
+		x0[threadId] = particles[threadId].x;
 
 		glm::vec4 tmp = mat * glm::vec4(particles[threadId].x, 1.0f);
 		tmp /= tmp.w;
@@ -60,6 +76,9 @@ void transformParticlePositionPerRigidBody(int base,int size,Particle * particle
 
 void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 {
+	hst_cm0 = new glm::vec3[num_rigidBody];
+
+	num_rigidBodies = num_rigidBody;
 	num_particles = 0;
 	for (int i = 0; i < num_rigidBody; i++)
 	{
@@ -75,24 +94,36 @@ void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 	cudaMemset(dev_positions, 0, 3 * num_particles * sizeof(float));
 	checkCUDAError("ERROR: cudaMalloc");
 
+	
+	cudaMalloc(&dev_particle_x0, num_particles * sizeof(glm::vec3));
+	
 
 	const int blockSizer = 192;
 	int cur = 0;
+	//glm::vec3 * hst_cm0 = new glm::vec3[num_rigidBody];
+
 	for (int i = 0; i < num_rigidBody; i++)
 	{
+		hst_cm0[i] = rigidbodys[i].getCenterOfMass();
 		// Particle objects
 		int size = rigidbodys[i].m_particles.size();
 		cudaMemcpy(dev_particles + cur, rigidbodys[i].m_particles.data(), size * sizeof(Particle), cudaMemcpyHostToDevice);
 		
 		// translations and rotations of the rigid body should be done here
 		dim3 blockCountr((size + blockSizer - 1) / blockSizer);
-		transformParticlePositionPerRigidBody << <blockCountr, blockSizer >> >(cur, size, dev_particles, rigidbodys[i].getTransformMatrix());
+		transformParticlePositionPerRigidBody << <blockCountr, blockSizer >> >(cur, size, dev_particles, dev_particle_x0, rigidbodys[i].getTransformMatrix());
 
+		
 
 		cur += size;
 
 		// TODO copy position values too so that particle sleeping works
 	}
+
+	//cudaMalloc(&dev_rigid_body_cm_0, num_rigidBody * sizeof(glm::vec3));
+	//cudaMemcpy(dev_rigid_body_cm_0, hst_cm0, num_rigidBody * sizeof(glm::vec3), cudaMemcpyHostToDevice);
+	//delete []hst_cm0;
+
 	checkCUDAError("ERROR: assemble particle array");
 }
 
@@ -125,6 +156,15 @@ void endSimulation()
 
 	cudaFree(dev_grid);
 	cudaFree(dev_particle_voxel_id);
+
+	cudaFree(dev_particle_x0);
+
+	if (hst_cm0 != NULL)
+	{
+		delete []hst_cm0;
+		hst_cm0 = NULL;
+	}
+	
 }
 
 
@@ -251,6 +291,40 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 	}
 }
 
+
+__global__
+void setAValue(int base,int N, glm::mat3 * Apq, glm::mat3 * Aqq, Particle * particles, glm::vec3 * predict_x, glm::vec3 cm, glm::vec3* x0, glm::vec3 cm0)
+{
+	int tid = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if (tid < N)
+	{
+		//treat every particle in one rigid body has the same mass
+		Apq[tid] = glm::outerProduct(predict_x[tid + base] - cm
+			, x0[tid + base] - cm0);
+
+		Aqq[tid] = glm::outerProduct(x0[tid + base] - cm0
+			, x0[tid + base] - cm0);
+	}
+	
+}
+
+__global__
+void shapeMatching(int base, int size, glm::vec3 * predict_x, glm::vec3* x0, glm::vec3 cm0, glm::vec3 cm,glm::mat3 R){
+	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
+	if (threadId < size){
+
+		threadId += base;
+
+		predict_x[threadId] = R * (x0[threadId] - cm0) + cm;
+
+	}
+}
+
+
+
+
+
 __global__
 void updatePositionFloatArray(int N, glm::vec3 * predictions, Particle * particles, float * positions, const float delta_t)
 {
@@ -273,7 +347,7 @@ void updatePositionFloatArray(int N, glm::vec3 * predictions, Particle * particl
 	}
 }
 
-void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer)
+void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer, RigidBody * rigidBody)
 {
 	const int blockSizer = 192;
 	dim3 blockCountr((num_particles + blockSizer - 1) / blockSizer);
@@ -299,7 +373,64 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 		grid_resolution, dev_predictPosition, dev_particles, dev_grid, dev_particle_voxel_id, delta_t);
 	checkCUDAError("ERROR: handle collision");
 
-	// Shape matching constraint
+
+	//---- Shape matching constraint --------
+	
+	
+	
+	int base = 0;
+	for (int i = 0; i < num_rigidBodies; i++)
+	{
+		if (rigidBody[i].getInvMassScale() < FLT_EPSILON)
+		{
+			//static object, no need for shape matching
+			continue;
+		}
+
+
+		int size = rigidBody[i].m_particles.size();
+		dim3 blockCountrPerRigidBody((size + blockSizer - 1) / blockSizer);
+		
+		thrust::device_vector<glm::mat3> dev_Apq(num_particles);
+		thrust::device_vector<glm::mat3> dev_Aqq(num_particles);
+		glm::mat3 * dev_Apq_ptr = thrust::raw_pointer_cast(&dev_Apq[0]);
+		glm::mat3 * dev_Aqq_ptr = thrust::raw_pointer_cast(&dev_Aqq[0]);
+
+		//calculate current cm
+		thrust::device_vector<glm::vec3> dev_px(size);	//predict position
+		//glm::vec3 * dev_px_ptr = thrust::raw_pointer_cast(&dev_px[0]);
+		//cudaMemcpy(dev_px_ptr, dev_predictPosition + base, size * sizeof(glm::vec3), cudaMemcpyDeviceToDevice);
+		thrust::device_ptr<glm::vec3> dev_predict_base(dev_predictPosition + base);
+		thrust::copy_n(dev_predict_base, size, dev_px.begin());
+
+		glm::vec3 cm = thrust::reduce(dev_px.begin(), dev_px.end(), glm::vec3(0.0), thrust::plus<glm::vec3>());
+		cm = cm / ((float)size);
+		printf("%d:   %f,%f,%f\n", i,cm.x, cm.y, cm.z);
+
+
+		//calculate A matrix
+		setAValue << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_Apq_ptr, dev_Aqq_ptr, dev_particles, dev_predictPosition,
+			cm, dev_particle_x0, hst_cm0[i]);
+
+		glm::mat3 A_pq = thrust::reduce(dev_Apq.begin(), dev_Apq.end(), glm::mat3(0.0), thrust::plus<glm::mat3>());
+		glm::mat3 A_qq = thrust::reduce(dev_Aqq.begin(), dev_Aqq.end(), glm::mat3(0.0), thrust::plus<glm::mat3>());
+
+
+		//calculate Rotation
+		glm::mat3 R;
+		//TODO: polar decomposition of A to get R
+
+
+		//modify predict positions
+		shapeMatching << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_predictPosition, dev_particle_x0, hst_cm0[i], cm, R);
+
+		//next rigid body
+		base += size;
+	}
+
+
+	//--------------------------------------
+
 	// Delta X for shape matching
 	// Average and update
 

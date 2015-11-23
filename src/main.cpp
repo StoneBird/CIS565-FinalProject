@@ -165,7 +165,7 @@ void samplingTest_Loop()
 		// 0.0167 is 60 FPS
 		// More steps can reduce tunneling effect (due to high velocity and thin object)
 		for (int i = 0; i < 0.0167 / DELTA_T; i++){
-			simulate(GRAVITY, DELTA_T, v_buffer_ptr);
+			simulate(GRAVITY, DELTA_T, v_buffer_ptr,rigid_body);
 		}
 
 		// Unmap the buffer pointer so that openGL will start rendering

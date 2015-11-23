@@ -35,7 +35,7 @@ void initUniformGrid(glm::vec3 bmin, glm::vec3 bmax, float diameter);
 
 //----------simulate loop functions-------------------
 
-void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer);
+void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer, RigidBody * rigidBody);
 
 
 

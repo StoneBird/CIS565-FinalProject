@@ -58,6 +58,7 @@ void RigidBody::initBoundingBox()
 {
 	m_min = glm::vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 	m_max = glm::vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+	m_cm = glm::vec3(0.0);
 
 	//get bounding box
 	//for (auto shape : m_shapes)
@@ -81,6 +82,10 @@ void RigidBody::initBoundingBox()
 					, shape.mesh.positions[3 * idx + 1]
 					, shape.mesh.positions[3 * idx + 2]);
 
+				//all particle mass is identical
+				m_cm += pos;
+
+
 				m_min.x = min(m_min.x, pos.x);
 				m_min.y = min(m_min.y, pos.y);
 				m_min.z = min(m_min.z, pos.z);
@@ -94,6 +99,8 @@ void RigidBody::initBoundingBox()
 		}
 
 	}
+
+	m_cm /= (float)(m_shapes.at(0).mesh.indices.size() / 3);
 }
 
 

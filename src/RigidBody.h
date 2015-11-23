@@ -17,6 +17,9 @@ protected:
 	glm::vec3 m_min;
 	glm::vec3 m_max;
 
+	//center of mass
+	glm::vec3 m_cm;
+
 	//obj geometry
 	vector<tinyobj::shape_t> m_shapes;
 	vector<tinyobj::material_t> m_materials;
@@ -31,14 +34,19 @@ protected:
 	glm::vec3 m_init_velocity;
 
 	// obj particle mass scale
+	//inverse of mass
 	float m_mass_scale;
 
 	// obj phase (group id)
 	int m_phase;
 
 public:
-	//particle
+
+	//particles
+	//this store particles in local coordinate, regular(no deform)
 	vector<Particle> m_particles;
+
+
 	vector<float> m_particle_pos;
 
 
@@ -48,7 +56,9 @@ public:
 
 	//getter methods
 	float getGridLength(){ return m_grid_length; }
+	glm::vec3 getCenterOfMass(){ return m_cm; }
 	glm::mat4 getTransformMatrix();
+	float getInvMassScale(){ return m_mass_scale; }
 
 
 
