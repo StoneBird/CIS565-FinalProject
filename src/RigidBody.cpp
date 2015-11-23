@@ -1,7 +1,12 @@
 #include "RigidBody.h"
 #include <algorithm>
-
+#include <iostream>
 #include "particleSampling.h"
+
+
+#include <Eigen/Dense>
+#include <Eigen/SVD>
+
 
 RigidBody::RigidBody()
 	:m_scale(1.0), m_translate(0.0)
@@ -153,3 +158,35 @@ void RigidBody::initParticles(float grid_size)
 }
 
 
+
+
+
+
+glm::mat3 polarDecomposite(glm::mat3 Ag)
+{
+	Eigen::Matrix3f A;
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			A(i, j) = Ag[i][j];
+		}
+	}
+	Eigen::Affine3f T(A);
+	Eigen::Matrix3f mR, mS;
+	glm::mat3 R;
+
+	mR = T.rotation();
+
+	//T.computeRotationScaling(&mR, &mS);
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			R[i][j] = mR(i, j);
+		}
+	}
+	
+	//std::cout << mR << endl << endl;
+	return R;
+}

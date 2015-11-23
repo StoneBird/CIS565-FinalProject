@@ -13,6 +13,8 @@
 #include "particleSampling.h"
 #include "simulate.h"
 
+
+
 #define OBJ_ARR_SIZE 2
 
 #define GRAVITY (glm::vec3(0.0f,-9.8f,0.0f))
@@ -46,7 +48,8 @@ int main(int argc, char **argv) {
 		//rigid_body[0].setScale(glm::vec3(0.4f, 0.4f, 0.4f));
 		rigid_body[0].setPhase(0);
 		rigid_body[0].setTranslate(glm::vec3(0.0f, 0.0f, 0.0f));
-		rigid_body[0].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
+		//rigid_body[0].setRotation(glm::rotate(45.0f, glm::vec3(1.0f, 0.0f, 0.0f)));
+		rigid_body[0].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
 		rigid_body[0].setMassScale(1.0f);
 		rigid_body[0].initObj(argv[1]);
 		rigid_body[0].initParticles(10);

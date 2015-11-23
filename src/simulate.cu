@@ -15,6 +15,9 @@
 #include "simulate.h"
 #include <vector>
 
+//#include <Eigen/Dense>
+//#include "Eigen/SVD"
+
 #define K_SPRING_COEFF (0.1f)
 #define N_DAMPING_COEFF (0.0f)
 #define K_SHEAR_COEFF (0.0f)
@@ -293,7 +296,7 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 
 
 __global__
-void setAValue(int base,int N, glm::mat3 * Apq, glm::mat3 * Aqq, Particle * particles, glm::vec3 * predict_x, glm::vec3 cm, glm::vec3* x0, glm::vec3 cm0)
+void setAValue(int base,int N, glm::mat3 * Apq, Particle * particles, glm::vec3 * predict_x, glm::vec3 cm, glm::vec3* x0, glm::vec3 cm0)
 {
 	int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -303,8 +306,8 @@ void setAValue(int base,int N, glm::mat3 * Apq, glm::mat3 * Aqq, Particle * part
 		Apq[tid] = glm::outerProduct(predict_x[tid + base] - cm
 			, x0[tid + base] - cm0);
 
-		Aqq[tid] = glm::outerProduct(x0[tid + base] - cm0
-			, x0[tid + base] - cm0);
+		//Aqq[tid] = glm::outerProduct(x0[tid + base] - cm0
+		//	, x0[tid + base] - cm0);
 	}
 	
 }
@@ -393,9 +396,9 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 		dim3 blockCountrPerRigidBody((size + blockSizer - 1) / blockSizer);
 		
 		thrust::device_vector<glm::mat3> dev_Apq(num_particles);
-		thrust::device_vector<glm::mat3> dev_Aqq(num_particles);
+		//thrust::device_vector<glm::mat3> dev_Aqq(num_particles);
 		glm::mat3 * dev_Apq_ptr = thrust::raw_pointer_cast(&dev_Apq[0]);
-		glm::mat3 * dev_Aqq_ptr = thrust::raw_pointer_cast(&dev_Aqq[0]);
+		//glm::mat3 * dev_Aqq_ptr = thrust::raw_pointer_cast(&dev_Aqq[0]);
 
 		//calculate current cm
 		thrust::device_vector<glm::vec3> dev_px(size);	//predict position
@@ -410,17 +413,17 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 
 
 		//calculate A matrix
-		setAValue << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_Apq_ptr, dev_Aqq_ptr, dev_particles, dev_predictPosition,
+		setAValue << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_Apq_ptr, dev_particles, dev_predictPosition,
 			cm, dev_particle_x0, hst_cm0[i]);
 
 		glm::mat3 A_pq = thrust::reduce(dev_Apq.begin(), dev_Apq.end(), glm::mat3(0.0), thrust::plus<glm::mat3>());
-		glm::mat3 A_qq = thrust::reduce(dev_Aqq.begin(), dev_Aqq.end(), glm::mat3(0.0), thrust::plus<glm::mat3>());
+		//glm::mat3 A_qq = thrust::reduce(dev_Aqq.begin(), dev_Aqq.end(), glm::mat3(0.0), thrust::plus<glm::mat3>());
 
 
 		//calculate Rotation
 		glm::mat3 R;
-		//TODO: polar decomposition of A to get R
-
+		
+		R = polarDecomposite(A_pq);
 
 		//modify predict positions
 		shapeMatching << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_predictPosition, dev_particle_x0, hst_cm0[i], cm, R);

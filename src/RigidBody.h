@@ -85,3 +85,10 @@ public:
 
 	
 };
+
+
+
+
+
+
+glm::mat3 polarDecomposite(glm::mat3 A);
