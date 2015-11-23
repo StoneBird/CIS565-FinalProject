@@ -18,9 +18,9 @@
 #define OBJ_ARR_SIZE 2
 
 #define GRAVITY (glm::vec3(0.0f,-9.8f,0.0f))
-#define FPS 120.0f
+#define FPS 60.0f
 #define FRAME_TIME 1.0f/FPS
-#define SIMU_STEP 1
+#define SIMU_STEP 5
 #define DELTA_T FRAME_TIME/SIMU_STEP
 
 //-------------------------------

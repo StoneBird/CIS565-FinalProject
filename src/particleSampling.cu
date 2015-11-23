@@ -214,10 +214,10 @@ void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos, 
 
 	// Depth peeling
 		// Intersection test
-	intersect << <blocksPerGrid, blockSize >> >(dev_peels, dev_triangles, num_triangles, resolution, voxel_diam, ray);
+	intersect << <blocksPerGrid, blockSize >> >(dev_peels, dev_triangles, num_triangles, resolution, voxel_diam * 0.999, ray);
 	checkCUDAError("Intersection");
 		// Fill ray segment
-	fillPeel << <blocksPerGrid, blockSize >> >(dev_particles, dev_peels, resolution, voxel_diam);
+	fillPeel << <blocksPerGrid, blockSize >> >(dev_particles, dev_peels, resolution, voxel_diam * 0.999);
 	checkCUDAError("Peel filling");
 
 	// Stream compaction
