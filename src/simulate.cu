@@ -318,6 +318,7 @@ void shapeMatching(int base, int size, glm::vec3 * predict_x, glm::vec3* x0, glm
 
 		predict_x[threadId] = R * (x0[threadId] - cm0) + cm;
 
+
 	}
 }
 
@@ -400,12 +401,12 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 		thrust::device_vector<glm::vec3> dev_px(size);	//predict position
 		//glm::vec3 * dev_px_ptr = thrust::raw_pointer_cast(&dev_px[0]);
 		//cudaMemcpy(dev_px_ptr, dev_predictPosition + base, size * sizeof(glm::vec3), cudaMemcpyDeviceToDevice);
-		thrust::device_ptr<glm::vec3> dev_predict_base(dev_predictPosition + base);
-		thrust::copy_n(dev_predict_base, size, dev_px.begin());
+		thrust::device_ptr<glm::vec3> dev_predict_base(dev_predictPosition);
+		thrust::copy_n(dev_predict_base + base, size, dev_px.begin());
 
 		glm::vec3 cm = thrust::reduce(dev_px.begin(), dev_px.end(), glm::vec3(0.0), thrust::plus<glm::vec3>());
 		cm = cm / ((float)size);
-		printf("%d:   %f,%f,%f\n", i,cm.x, cm.y, cm.z);
+		
 
 
 		//calculate A matrix

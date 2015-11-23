@@ -252,6 +252,9 @@ void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos, 
 	std::copy(p_out, p_out + newSize, hst_p.begin());
 	std::copy(pos_out, pos_out + newSize*3, hst_pos.begin());
 
+	
+
+
 	cudaFree(dev_particle_cache);
 	cudaFree(dev_particle_pos_cache);
 	free(p_out);

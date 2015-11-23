@@ -58,7 +58,7 @@ void RigidBody::initBoundingBox()
 {
 	m_min = glm::vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 	m_max = glm::vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-	m_cm = glm::vec3(0.0);
+	
 
 	//get bounding box
 	//for (auto shape : m_shapes)
@@ -100,7 +100,7 @@ void RigidBody::initBoundingBox()
 
 	}
 
-	m_cm /= (float)(m_shapes.at(0).mesh.indices.size() / 3);
+	
 }
 
 
@@ -133,6 +133,18 @@ void RigidBody::initParticles(float grid_size)
 	// --> Stream compaction
 	// --> Copy array of Particle to host
 	sampleParticles(m_particles, m_particle_pos, glm::mat4(), m_init_velocity, m_mass_scale, m_phase);
+
+	
+	// calculate center of mass
+	// cpu version
+	m_cm = glm::vec3(0.0);
+	int num_particle = m_particle_pos.size() / 3;
+	for (int i = 0; i < num_particle; i++)
+	{
+		glm::vec3 p(m_particle_pos.at(3 * i + 0), m_particle_pos.at(3 * i + 1), m_particle_pos.at(3 * i + 2));
+		m_cm += p;
+	}
+	m_cm /= (float)num_particle;
 
 	/*
 	printf("%f %f %f\n", m_particles[0].x.x, m_particles[0].x.y, m_particles[0].x.z);
