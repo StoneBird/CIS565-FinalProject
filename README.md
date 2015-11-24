@@ -71,3 +71,6 @@ Preprocessing → Simulation → Vertex Shader (→ Geometry Shader / Meshing �
 	![](img/milestone1.png)
 	
 	
+* 11/23 Milestone 2, rigid body dynamics (some feature still buggy)
+	* https://docs.google.com/presentation/d/1gCueC30LCkredTDXQ0NBadJjtKGnMahzDTzwR9Wir8Q/edit?usp=sharing
+	
