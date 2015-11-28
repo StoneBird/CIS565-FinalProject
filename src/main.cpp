@@ -184,15 +184,21 @@ void samplingTest_Loop()
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
+		
 		//glPointSize(30);
 		
 		glDrawArrays(GL_POINTS, 0, num_points);
 		glDisableVertexAttribArray(0);
 		
+		glEnableVertexAttribArray(1);
+		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer_color);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+		
+
 		glUseProgram(0);
 
 		glfwSwapBuffers(window);
-
+		
 	}
 	glfwDestroyWindow(window);
 	glfwTerminate();
@@ -254,29 +260,45 @@ void samplingTest_InitVAO()
 	// Initialize buffer data
 	GLfloat *g_vertex_buffer_data;
 
-
+	GLfloat *g_vertex_buffer_color;
 	
 
 	//init opengl vertex buffer
 	vector<float> all_particles;
+	vector<float> particles_color;
 
 	for (int i = 0; i < OBJ_ARR_SIZE; i++){
 		all_particles.insert(all_particles.end(), rigid_body[i].m_particle_pos.begin(), rigid_body[i].m_particle_pos.end());
+
+		//particles_color.insert(particles_color.end(), rigid_body[i].m_particle_pos.size(), 1.0f);
+		int size = rigid_body[i].m_particle_pos.size() / 3;
+		for (int j = 0; j < size; j++)
+		{
+			int p = rigid_body[i].getPhase();
+			particles_color.insert(particles_color.end(), COLOR_PRESET + 3 * p, COLOR_PRESET + 3 * p + 3);
+		}
 	}
 
 	g_vertex_buffer_data = (GLfloat*)malloc(all_particles.size() * sizeof(GLfloat));
 	std::copy(all_particles.begin(), all_particles.end(), g_vertex_buffer_data);
+
+	g_vertex_buffer_color = (GLfloat*)malloc(particles_color.size() * sizeof(GLfloat));
+	std::copy(particles_color.begin(), particles_color.end(), g_vertex_buffer_color);
 	
-	GLuint VertexArrayID[1];
-	glGenVertexArrays(1, VertexArrayID);
+	GLuint VertexArrayID[2];
+	glGenVertexArrays(2, VertexArrayID);
 	glBindVertexArray(VertexArrayID[0]);
+	glBindVertexArray(VertexArrayID[1]);
 
 	glGenBuffers(1, &vertexbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
 	glBufferData(GL_ARRAY_BUFFER, all_particles.size()*sizeof(GLfloat), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	
+	glGenBuffers(1, &vertexbuffer_color);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer_color);
+	glBufferData(GL_ARRAY_BUFFER, particles_color.size()*sizeof(GLfloat), g_vertex_buffer_color, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	num_points = all_particles.size() / 3;
 	buffer_size = all_particles.size();

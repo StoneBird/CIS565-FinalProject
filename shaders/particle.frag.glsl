@@ -4,6 +4,8 @@ out vec4 vFragColor;
 uniform vec3 u_color;
 uniform vec3 u_lightDir;
 
+in vec3 fragmentColor;
+
 void main(void)
 {
     // calculate normal from texture coordinates
@@ -16,5 +18,6 @@ void main(void)
     // calculate lighting
     float diffuse = max(0.0, dot(u_lightDir, N));
 
-    vFragColor = vec4(u_color,1) * diffuse;
+    //vFragColor = vec4(u_color,1) * diffuse;
+    vFragColor = vec4(fragmentColor,1) * diffuse;
 }

@@ -1,13 +1,15 @@
 #version 330
 
 layout(location = 0) in vec3 position;
-
+layout(location = 1) in vec3 vertexColor;
 
 
 uniform mat4 u_projMatrix;
 uniform mat4 u_modelView;
 uniform vec2 u_screenSize;
 uniform float u_spriteSize;
+
+out vec3 fragmentColor;
 
 void main(){
     vec4 eyePos = u_modelView * vec4(position,1.0);
@@ -16,5 +18,5 @@ void main(){
     gl_PointSize = 0.25 * (projSize.x+projSize.y);
     gl_Position = u_projMatrix * eyePos;
     
-    
+    fragmentColor = vertexColor;
 }

@@ -118,6 +118,7 @@ glm::vec3 cameraPosition(x_trans, y_trans, z_trans);
 
 int num_points;
 GLuint vertexbuffer;
+GLuint vertexbuffer_color;
 
 GLuint vertexBufferObjID[3];
 GLuint program;
@@ -146,3 +147,13 @@ GLuint u_spriteSize;
 
 GLuint u_color;
 GLuint u_lightDir;
+
+
+
+
+// particle color preset
+const float COLOR_PRESET[] = { 
+1.0f, 1.0f, 0.0f,	//yellow
+1.0f, 0.5f, 0.0f,	//orange
+0.0f, 0.5f, 1.0f	//water
+};

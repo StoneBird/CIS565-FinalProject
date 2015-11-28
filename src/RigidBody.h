@@ -61,7 +61,7 @@ public:
 	glm::vec3 getCenterOfMass(){ return m_cm; }
 	glm::mat4 getTransformMatrix();
 	float getInvMassScale(){ return m_mass_scale; }
-
+	int getPhase(){ return m_phase; }
 
 
 	//init operations
