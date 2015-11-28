@@ -4,7 +4,7 @@ out vec4 vFragColor;
 uniform vec3 u_color;
 uniform vec3 u_lightDir;
 
-in vec3 fragmentColor;
+in vec4 fragmentColor;
 
 void main(void)
 {
@@ -19,5 +19,7 @@ void main(void)
     float diffuse = max(0.0, dot(u_lightDir, N));
 
     //vFragColor = vec4(u_color,1) * diffuse;
-    vFragColor = vec4(fragmentColor,1) * diffuse;
+    //vFragColor = vec4(fragmentColor,1) * diffuse;
+    vFragColor = fragmentColor * diffuse;
+    vFragColor.a = fragmentColor.a;
 }

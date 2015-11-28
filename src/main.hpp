@@ -152,8 +152,10 @@ GLuint u_lightDir;
 
 
 // particle color preset
+const int NUM_COLOR_PRESET = 4;
 const float COLOR_PRESET[] = { 
-1.0f, 1.0f, 0.0f,	//yellow
-1.0f, 0.5f, 0.0f,	//orange
-0.0f, 0.5f, 1.0f	//water
+1.0f, 1.0f, 0.0f, 0.0f,	//yellow
+1.0f, 0.5f, 0.0f, 1.0f,	//orange
+0.0f, 0.5f, 1.0f, 1.0f,	//blue
+0.8f, 0.0f, 0.8f, 1.0f	//purple
 };

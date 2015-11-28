@@ -1,7 +1,7 @@
 #version 330
 
 layout(location = 0) in vec3 position;
-layout(location = 1) in vec3 vertexColor;
+layout(location = 1) in vec4 vertexColor;
 
 
 uniform mat4 u_projMatrix;
@@ -9,7 +9,7 @@ uniform mat4 u_modelView;
 uniform vec2 u_screenSize;
 uniform float u_spriteSize;
 
-out vec3 fragmentColor;
+out vec4 fragmentColor;
 
 void main(){
     vec4 eyePos = u_modelView * vec4(position,1.0);

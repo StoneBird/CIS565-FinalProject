@@ -192,7 +192,7 @@ void samplingTest_Loop()
 		
 		glEnableVertexAttribArray(1);
 		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer_color);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)0);
 		
 
 		glUseProgram(0);
@@ -274,8 +274,8 @@ void samplingTest_InitVAO()
 		int size = rigid_body[i].m_particle_pos.size() / 3;
 		for (int j = 0; j < size; j++)
 		{
-			int p = rigid_body[i].getPhase();
-			particles_color.insert(particles_color.end(), COLOR_PRESET + 3 * p, COLOR_PRESET + 3 * p + 3);
+			int p = rigid_body[i].getPhase() % NUM_COLOR_PRESET;
+			particles_color.insert(particles_color.end(), COLOR_PRESET + 4 * p, COLOR_PRESET + 4 * p + 4);
 		}
 	}
 
@@ -324,7 +324,10 @@ void samplingTest_InitShaders(GLuint & program) {
 	glEnable(GL_PROGRAM_POINT_SIZE);
 	glEnable(GL_DEPTH_TEST);
 
-
+	//alpha
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	
 	//vertex shader
 	u_modelView = glGetUniformLocation(program, "u_modelView");
 	u_projMatrix = glGetUniformLocation(program, "u_projMatrix");
