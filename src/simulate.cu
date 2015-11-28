@@ -15,7 +15,7 @@
 #include "simulate.h"
 #include <vector>
 
-#include <util/dsyevj3.c>
+//#include <util/dsyevj3.c>
 
 #define K_SPRING_COEFF (0.1f)
 #define N_DAMPING_COEFF (0.0f)
