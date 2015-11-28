@@ -15,7 +15,7 @@
 #include "simulate.h"
 #include <vector>
 
-#include <util/svd3_cuda.h>
+#include <util/dsyevj3.c>
 
 #define K_SPRING_COEFF (0.1f)
 #define N_DAMPING_COEFF (0.0f)
@@ -320,27 +320,31 @@ __global__
 void shapeMatching(int base, int size, glm::vec3 * delta_positions, glm::vec3 * predictions, glm::vec3 *x0, glm::vec3 cm0, glm::vec3 cm, glm::mat3 * dev_Apq_ptr, int * dev_n){
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadId < size){
-		glm::mat3 A(0.0f), U(0.0f), S(0.0f), V(0.0f), R(0.0f);
-		for (int i = threadId; i < size; i++){
-			A += dev_Apq_ptr[i];
-		}
-
 		threadId += base;
 
-		// SVD code https://github.com/ericjang/svd3
-		/*
-		svd(a11, a12, a13, a21, a22, a23, a31, a32, a33,
-		u11, u12, u13, u21, u22, u23, u31, u32, u33,
-		s11, s12, s13, s21, s22, s23, s31, s32, s33,
-		v11, v12, v13, v21, v22, v23, v31, v32, v33);
-		*/
-		// GLM is column major
-		svd(A[0][0], A[1][0], A[2][0], A[0][1], A[1][1], A[2][1], A[0][2], A[1][2], A[2][2],
-			U[0][0], U[1][0], U[2][0], U[0][1], U[1][1], U[2][1], U[0][2], U[1][2], U[2][2],
-			S[0][0], S[1][0], S[2][0], S[0][1], S[1][1], S[2][1], S[0][2], S[1][2], S[2][2],
-			V[0][0], V[1][0], V[2][0], V[0][1], V[1][1], V[2][1], V[0][2], V[1][2], V[2][2]);
+		glm::mat3 Apq(0.0f), R(0.0f), ROOT(0.0f);
 
-		R = U * glm::transpose(V);
+		// TODO extract to one single pre-calculation (as it was before)
+		for (int i = 0; i < size; i++){
+			Apq += dev_Apq_ptr[i];
+		}
+
+		glm::mat3 A = glm::transpose(Apq)*Apq;
+
+		// Denman¨CBeavers iteration
+		// https://en.wikipedia.org/wiki/Square_root_of_a_matrix
+
+		glm::mat3 Y = A, Z(1.0f);
+
+		for (int i = 0; i < 8; i++){
+			Y = 0.5f*(Y + glm::inverse(Z));
+			Z = 0.5f*(Z + glm::inverse(Y));
+		}
+
+		ROOT = Y;
+
+		// https://en.wikipedia.org/wiki/Polar_decomposition
+		R = Apq * glm::inverse(ROOT);
 
 		// Delta X for shape matching
 		delta_positions[threadId] += R * (x0[threadId] - cm0) + cm - predictions[threadId];
@@ -383,7 +387,7 @@ void updatePositionFloatArray(int N, glm::vec3 * predictions, Particle * particl
 
 		// Particle sleeping
 		// Truncate super small values so avoid if-statement
-		particles[threadId].x = particles[threadId].x + glm::trunc((predictions[threadId] - particles[threadId].x)*100000.0f) / 100000.0f;
+		particles[threadId].x = particles[threadId].x + glm::trunc((predictions[threadId] - particles[threadId].x)*1000.0f) / 1000.0f;
 
 		// Update positions
 		positions[3 * threadId] = particles[threadId].x.x;
