@@ -65,7 +65,8 @@ int main(int argc, char **argv) {
 		if (argc == 3){
 			rigid_body[1].setPhase(1);
 			rigid_body[1].setTranslate(glm::vec3(0.0f, -3.0f, 0.0f));
-			rigid_body[1].setRotation(glm::rotate(90.0f*(float)PI / 180.0f, glm::vec3(1.0f, 0.0f, 0.0f)));
+			rigid_body[1].setRotation(glm::rotate(180.0f*(float)PI / 180.0f, glm::vec3(0.0f, 1.0f, 0.0f)) *
+				glm::rotate(90.0f*(float)PI / 180.0f, glm::vec3(1.0f, 0.0f, 0.0f)));
 			rigid_body[1].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
 			rigid_body[1].setMassScale(0.0f);
 			rigid_body[1].setType(SOLID);
@@ -331,8 +332,8 @@ void samplingTest_InitShaders(GLuint & program) {
 	glEnable(GL_DEPTH_TEST);
 
 	//alpha
-	//glEnable(GL_BLEND);
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
 	//vertex shader
 	u_modelView = glGetUniformLocation(program, "u_modelView");
