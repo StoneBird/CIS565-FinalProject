@@ -47,10 +47,23 @@ int main(int argc, char **argv) {
 
 	if (samplingTest_Init()) {
 
-		// Rigid body Suzanne
+		//// Rigid body Suzanne
+		//rigid_body[0].setPhase(0);
+		//rigid_body[0].setTranslate(glm::vec3(0.0f, 0.0f, 0.0f));
+		//rigid_body[0].setRotation(glm::rotate(5.0f*(float)PI/180.0f, glm::vec3(0.0f, 0.0f, 1.0f)));
+		//rigid_body[0].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
+		////rigid_body[0].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
+		//rigid_body[0].setMassScale(1.0f);
+		//rigid_body[0].setType(SOLID);
+		//rigid_body[0].setColor(glm::vec4(0.0f, 0.5f, 1.0f, 1.0f));
+		//rigid_body[0].initObj(argv[1]);
+		//rigid_body[0].initParticles(10);
+
+		// water fill
 		rigid_body[0].setPhase(0);
-		rigid_body[0].setTranslate(glm::vec3(0.0f, 0.0f, 0.0f));
-		rigid_body[0].setRotation(glm::rotate(5.0f*(float)PI/180.0f, glm::vec3(0.0f, 0.0f, 1.0f)));
+		rigid_body[0].setScale(glm::vec3(1.5f, 1.5f, 1.5f));
+		rigid_body[0].setTranslate(glm::vec3(0.0f, 5.0f, 0.0f));
+		//rigid_body[0].setRotation(glm::rotate(5.0f*(float)PI / 180.0f, glm::vec3(0.0f, 0.0f, 1.0f)));
 		rigid_body[0].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
 		//rigid_body[0].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
 		rigid_body[0].setMassScale(1.0f);
@@ -58,18 +71,6 @@ int main(int argc, char **argv) {
 		rigid_body[0].setColor(glm::vec4(0.0f, 0.5f, 1.0f, 1.0f));
 		rigid_body[0].initObj(argv[1]);
 		rigid_body[0].initParticles(10);
-
-		//// water fill
-		//rigid_body[0].setPhase(0);
-		//rigid_body[0].setTranslate(glm::vec3(0.0f, 5.0f, 0.0f));
-		////rigid_body[0].setRotation(glm::rotate(5.0f*(float)PI / 180.0f, glm::vec3(0.0f, 0.0f, 1.0f)));
-		//rigid_body[0].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
-		////rigid_body[0].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
-		//rigid_body[0].setMassScale(1.0f);
-		//rigid_body[0].setType(FLUID);
-		//rigid_body[0].setColor(glm::vec4(0.0f, 0.5f, 1.0f, 1.0f));
-		//rigid_body[0].initObj(argv[1]);
-		//rigid_body[0].initParticles(10);
 
 		uniform_grid_length = rigid_body[0].getGridLength();
 

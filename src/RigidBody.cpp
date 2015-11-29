@@ -118,9 +118,9 @@ void RigidBody::initParticles(int x_res)
 
 	// Use resolution on one axis to compute voxel grid side length
 	// Use side length to find # of particles on the other 2 axes
-	m_grid_length = tmp.x / ((float)x_res);
+	float grid_size = tmp.x / ((float)x_res);
 
-	initParticles(m_grid_length);
+	initParticles(grid_size);
 }
 
 
@@ -139,7 +139,8 @@ void RigidBody::initParticles(float grid_size)
 	// --> Stream compaction
 	// --> Copy array of Particle to host
 	// Apply transformation before calculating center of mass
-	sampleParticles(m_particles, m_particle_pos, getTransformMatrix(), m_init_velocity, m_mass_scale, m_phase,m_type);
+	//sampleParticles(m_particles, m_particle_pos, getTransformMatrix(), m_init_velocity, m_mass_scale, m_phase,m_type);
+	sampleParticles(m_particles, m_particle_pos, glm::mat4(), m_init_velocity, m_mass_scale, m_phase, m_type);
 
 	int num_particle = m_particles.size();
 

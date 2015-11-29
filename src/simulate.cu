@@ -61,7 +61,7 @@ __constant__ static glm::vec3* dev_particle_x0;
 //	initUniformGrid(bmin, bmax, particle_diameter);
 //}
 
-/*
+
 __global__
 void transformParticlePositionPerRigidBody(int base,int size, Particle * particles, glm::vec3* x0,glm::mat4 mat){
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
@@ -77,7 +77,7 @@ void transformParticlePositionPerRigidBody(int base,int size, Particle * particl
 
 	}
 }
-*/
+
 
 
 void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
@@ -117,9 +117,14 @@ void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 		// Particle objects
 		int size = rigidbodys[i].m_particles.size();
 		cudaMemcpy(dev_particles + cur, rigidbodys[i].m_particles.data(), size * sizeof(Particle), cudaMemcpyHostToDevice);
+		const int blockSizer = 192;
+		dim3 blockCountr((size + blockSizer - 1) / blockSizer);
+		transformParticlePositionPerRigidBody << <blockCountr, blockSizer >> >(cur, size, dev_particles, dev_particle_x0, rigidbodys[i].getTransformMatrix());
+
+
 
 		// Initialize rest config positions
-		cudaMemcpy(dev_particle_x0 + cur, rigidbodys[i].m_x0.data(), size * sizeof(glm::vec3), cudaMemcpyHostToDevice);
+		//cudaMemcpy(dev_particle_x0 + cur, rigidbodys[i].m_x0.data(), size * sizeof(glm::vec3), cudaMemcpyHostToDevice);
 
 		cur += size;
 	}
