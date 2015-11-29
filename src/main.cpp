@@ -51,10 +51,12 @@ int main(int argc, char **argv) {
 		//rigid_body[0].setScale(glm::vec3(0.4f, 0.4f, 0.4f));
 		rigid_body[0].setPhase(0);
 		rigid_body[0].setTranslate(glm::vec3(0.0f, 0.0f, 0.0f));
-		//rigid_body[0].setRotation(glm::rotate(5.0f, glm::vec3(1.0f, 0.0f, 0.0f)));
-		rigid_body[0].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
+		rigid_body[0].setRotation(glm::rotate(5.0f*(float)PI/180.0f, glm::vec3(0.0f, 0.0f, 1.0f)));
+		rigid_body[0].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
 		//rigid_body[0].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
 		rigid_body[0].setMassScale(1.0f);
+		rigid_body[0].setType(SOLID);
+		rigid_body[0].setColor(glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
 		rigid_body[0].initObj(argv[1]);
 		rigid_body[0].initParticles(10);
 
@@ -63,8 +65,11 @@ int main(int argc, char **argv) {
 		if (argc == 3){
 			rigid_body[1].setPhase(1);
 			rigid_body[1].setTranslate(glm::vec3(0.0f, -3.0f, 0.0f));
+			rigid_body[1].setRotation(glm::rotate(90.0f*(float)PI / 180.0f, glm::vec3(1.0f, 0.0f, 0.0f)));
 			rigid_body[1].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
 			rigid_body[1].setMassScale(0.0f);
+			rigid_body[1].setType(SOLID);
+			rigid_body[1].setColor(glm::vec4(1.0f, 0.5f, 0.0f, 0.3f));
 			rigid_body[1].initObj(argv[2]);
 			rigid_body[1].initParticles(uniform_grid_length);
 		}
@@ -274,8 +279,9 @@ void samplingTest_InitVAO()
 		int size = rigid_body[i].m_particle_pos.size() / 3;
 		for (int j = 0; j < size; j++)
 		{
-			int p = rigid_body[i].getPhase() % NUM_COLOR_PRESET;
-			particles_color.insert(particles_color.end(), COLOR_PRESET + 4 * p, COLOR_PRESET + 4 * p + 4);
+			//int p = rigid_body[i].getPhase() % NUM_COLOR_PRESET;
+			//particles_color.insert(particles_color.end(), COLOR_PRESET + 4 * p, COLOR_PRESET + 4 * p + 4);
+			particles_color.insert(particles_color.end(), rigid_body[i].m_color, rigid_body[i].m_color + 4);
 		}
 	}
 
@@ -325,8 +331,8 @@ void samplingTest_InitShaders(GLuint & program) {
 	glEnable(GL_DEPTH_TEST);
 
 	//alpha
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	//glEnable(GL_BLEND);
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
 	//vertex shader
 	u_modelView = glGetUniformLocation(program, "u_modelView");

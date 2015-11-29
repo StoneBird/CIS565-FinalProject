@@ -15,11 +15,10 @@
 #include "simulate.h"
 #include <vector>
 
+#include "fluid.h"
 //#include <util/dsyevj3.c>
 
-#define K_SPRING_COEFF (0.1f)
-#define N_DAMPING_COEFF (0.0f)
-#define K_SHEAR_COEFF (0.0f)
+#define H_KERNAL_WIDTH (0.1f)
 
 static int num_rigidBodies;
 static int num_particles;
@@ -236,7 +235,7 @@ void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, c
 
 
 __device__
-void hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,glm::vec3 * predict_positions, glm::vec3 * delta_positions,
+void hitTestVoxelSolid(int num_voxel, float diameter, int particle_id, int voxel_id, glm::vec3 * predict_positions, glm::vec3 * delta_positions,
 	Particle * particles, Voxel * grid, int * dev_n)
 {
 	if (voxel_id < 0 || voxel_id >= num_voxel)
@@ -250,7 +249,8 @@ void hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,
 	int n = 0;
 	for (int i = 0; i < grid[voxel_id].num; i++)
 	{
-		if (particles[grid[voxel_id].particle_id[i]].phase != particles[particle_id].phase)
+		if (particles[grid[voxel_id].particle_id[i]].phase != particles[particle_id].phase
+			&& particles[grid[voxel_id].particle_id[i]].type == SOLID)
 		{
 			// Distance vector from particle i to particle j (on particle centers)
 			glm::vec3 d = predict_positions[grid[voxel_id].particle_id[i]] - predict_positions[particle_id];
@@ -265,6 +265,7 @@ void hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,
 				delta_pos += momentWeight * glm::normalize(d) * (diameter - glm::length(d));
 			}
 		}
+			
 	}
 	// Apply average delta X position (treat as results of constraint solver)
 	delta_positions[particle_id] += delta_pos;
@@ -272,6 +273,78 @@ void hitTestVoxel(int num_voxel, float diameter, int particle_id, int voxel_id ,
 }
 
 
+
+
+// ------------------fluid---------------------
+
+
+__device__
+float SmoothKernel(glm::vec3 r, float h)
+{
+	//poly 6 kernel
+	return 315.0f / 64.0f / (float)PI / powf(h, 9.0f) * (glm::dot(r, r) <= h*h ? powf(h*h - glm::dot(r, r), 2.0f) : 0.0f);
+
+	//nearest neighbour
+
+}
+
+__device__
+float gradientSmoothKernel(glm::vec3 r, float h)
+{
+	//particle_id 0,1,2,3....
+
+	//tmp
+	return 1.0f;
+}
+
+__device__
+float hitTestVoxelFluid(float & gradient, glm::vec3 & delta_pos,int & n,
+int num_voxel, float diameter, int particle_id, int voxel_id, glm::vec3 * predict_positions, glm::vec3 * delta_positions,
+Particle * particles, Voxel * grid, int * dev_n)
+{
+	if (voxel_id < 0 || voxel_id >= num_voxel)
+	{
+		//voxel_id is invalid
+		return;
+	}
+
+
+	float density = 0.0f;	//for particles in this voxel
+	for (int i = 0; i < grid[voxel_id].num; i++)
+	{
+		glm::vec3 d = predict_positions[grid[voxel_id].particle_id[i]] - predict_positions[particle_id];
+		// If particles overlap
+		if (glm::length(d) <= diameter)
+		{
+			n++;
+			density += (particles[grid[voxel_id].particle_id[i]].type == FLUID ? 1.0f : (particles[particle_id].invmass < FLT_EPSILON ? 10.0f : 1.0f / particles[particle_id].invmass))
+				* SmoothKernel(predict_positions[particle_id] - predict_positions[grid[voxel_id].particle_id[i]], H_KERNAL_WIDTH);
+
+			gradient += gradientSmoothKernel(predict_positions[particle_id] - predict_positions[grid[voxel_id].particle_id[i]], H_KERNAL_WIDTH);
+
+			delta_pos += -d * 1.0f;
+		}
+	}
+
+	//correct version should update based on gradient matrix of Kernal 
+	//update all positions together
+
+	return density;
+}
+
+
+
+//---------------------------------------------
+
+
+
+
+
+
+
+
+
+//Handle Constraints
 __global__
 void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 	, glm::vec3 * predictPositions, glm::vec3 * deltaPositions, Particle * particles,Voxel * grid, int * ids, float delta_t, int * dev_n)
@@ -285,17 +358,56 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 
 		// Collision detection & reaction; simplified SDF constraint
 		// hitTest particles in neighbour voxel
-		for (int x = -1; x <= 1; x++)
+		
+		
+		if (particles[particle_id].type == SOLID)
 		{
-			for (int y = -1; y <= 1; y++)
+			for (int x = -1; x <= 1; x++)
 			{
-				for (int z = -1; z <= 1; z++)
+				for (int y = -1; y <= 1; y++)
 				{
-					hitTestVoxel(num_voxel, diameter, particle_id,
-						voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
-						predictPositions, deltaPositions, particles, grid, dev_n);
+					for (int z = -1; z <= 1; z++)
+					{
+						hitTestVoxelSolid(num_voxel, diameter, particle_id,
+							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
+							predictPositions, deltaPositions, particles, grid, dev_n);
+					}
 				}
 			}
+		}
+		else if (particles[particle_id].type == FLUID)
+		{
+			//C_i(x) = density/density0 - 1.0
+			//gradient_C_i(x)
+
+			//delta_X = - C_i / sum( gradient(C_i)^2 )
+
+			float density = 0.0f;
+			float gradient = 0.0f;
+			glm::vec3 delta_pos(0.0f);
+			int n = 0;
+
+			for (int x = -1; x <= 1; x++)
+			{
+				for (int y = -1; y <= 1; y++)
+				{
+					for (int z = -1; z <= 1; z++)
+					{
+						density += hitTestVoxelFluid(gradient,delta_pos,n,
+							num_voxel, diameter, particle_id,
+							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
+							predictPositions, deltaPositions, particles, grid, dev_n);
+					}
+				}
+			}
+
+			float lambda = -(density / 1.0f - 1.0f) / gradient;
+			
+			//deltaPositions[particle_id] += delta_pos / (n > 0 ? (float)n: 100.0f) * 1.0f * lambda;
+			//printf("%f,%f,%f\n", delta_pos.x, delta_pos.y, delta_pos.z);
+			deltaPositions[particle_id] += n > 0 ? 0.0000001f*glm::normalize(delta_pos) : glm::vec3(0.0f);
+			dev_n[particle_id] += 1;
+
 		}
 	}
 }
@@ -421,6 +533,7 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 	checkCUDAError("ERROR: updateVoxelIndex");
 
 	//detect collisions and generate collision constraints
+	//for fluid, get density and constraints
 	handleCollision << <blockCountr, blockSizer >> >(num_particles, num_voxel, grid_length,
 		grid_resolution, dev_predictPosition, dev_deltaPosition, dev_particles, dev_grid, dev_particle_voxel_id, delta_t, dev_n);
 	checkCUDAError("ERROR: handle collision");
@@ -429,46 +542,68 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 	int base = 0;
 	for (int i = 0; i < num_rigidBodies; i++)
 	{
-		if (rigidBody[i].getInvMassScale() < FLT_EPSILON)
+		ParticleType body_type = rigidBody[i].getType();
+		int size = rigidBody[i].m_particles.size();
+		dim3 blockCountrPerRigidBody((size + blockSizer - 1) / blockSizer);
+
+		//generate constraints
+		if (body_type == SOLID)
 		{
-			//static object, no need for shape matching
-			continue;
+			//Rigid solid body part
+			//TODO: turn into standard constraint method
+			if (rigidBody[i].getInvMassScale() < FLT_EPSILON)
+			{
+				//static object, no need for shape matching
+				base += size;
+				continue;
+			}
+
+			thrust::device_vector<glm::mat3> dev_Apq(num_particles);
+			glm::mat3 * dev_Apq_ptr = thrust::raw_pointer_cast(&dev_Apq[0]);
+
+			//calculate current cm
+			thrust::device_vector<glm::vec3> dev_px(size);	//predict position
+			//glm::vec3 * dev_px_ptr = thrust::raw_pointer_cast(&dev_px[0]);
+			//cudaMemcpy(dev_px_ptr, dev_predictPosition + base, size * sizeof(glm::vec3), cudaMemcpyDeviceToDevice);
+			thrust::device_ptr<glm::vec3> dev_predict_base(dev_predictPosition);
+			thrust::copy_n(dev_predict_base + base, size, dev_px.begin());
+
+			//update collision delta for calculating cm
+			glm::vec3 * dev_px_ptr = thrust::raw_pointer_cast(&dev_px[0]);
+			applyDeltaForCM << <blockCountrPerRigidBody, blockSizer >> >(dev_px_ptr, dev_deltaPosition, dev_n, size, base);
+
+
+			glm::vec3 cm = thrust::reduce(dev_px.begin(), dev_px.end(), glm::vec3(0.0), thrust::plus<glm::vec3>());
+			cm = cm / ((float)size);
+
+			//calculate A matrix
+			// Pre-process; calculate individual outer products
+			setAValue << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_Apq_ptr, dev_particle_x0, dev_predictPosition,
+				cm, hst_cm0[i]);
+
+			//modify predict positions
+			// Also find A and R within the kernel
+			shapeMatching << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_deltaPosition, dev_predictPosition, dev_particle_x0, hst_cm0[i], cm, dev_Apq_ptr, dev_n);
+
+		}
+		else if (body_type == FLUID)
+		{
+			//fluids
+
+			//get pi (density)
+
+			//find neighbour particles
+
+			//generate constraint matrix C (
+
+			//get gradient of C
+
+			//get lambda (same for all particles)
 		}
 
 		
-		int size = rigidBody[i].m_particles.size();
-		dim3 blockCountrPerRigidBody((size + blockSizer - 1) / blockSizer);
-		
-		thrust::device_vector<glm::mat3> dev_Apq(num_particles);
-		//thrust::device_vector<glm::mat3> dev_Aqq(num_particles);
-		glm::mat3 * dev_Apq_ptr = thrust::raw_pointer_cast(&dev_Apq[0]);
-		//glm::mat3 * dev_Aqq_ptr = thrust::raw_pointer_cast(&dev_Aqq[0]);
 
-		//calculate current cm
-		thrust::device_vector<glm::vec3> dev_px(size);	//predict position
-		//glm::vec3 * dev_px_ptr = thrust::raw_pointer_cast(&dev_px[0]);
-		//cudaMemcpy(dev_px_ptr, dev_predictPosition + base, size * sizeof(glm::vec3), cudaMemcpyDeviceToDevice);
-		thrust::device_ptr<glm::vec3> dev_predict_base(dev_predictPosition);
-		thrust::copy_n(dev_predict_base + base, size, dev_px.begin());
-
-		//update collision delta for calculating cm
-		glm::vec3 * dev_px_ptr = thrust::raw_pointer_cast(&dev_px[0]);
-		applyDeltaForCM << <blockCountrPerRigidBody, blockSizer >> >(dev_px_ptr, dev_deltaPosition, dev_n, size, base);
-
-
-		glm::vec3 cm = thrust::reduce(dev_px.begin(), dev_px.end(), glm::vec3(0.0), thrust::plus<glm::vec3>());
-		cm = cm / ((float)size);
-
-		//calculate A matrix
-		// Pre-process; calculate individual outer products
-		setAValue << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_Apq_ptr, dev_particle_x0, dev_predictPosition,
-			cm, hst_cm0[i]);
-
-		//modify predict positions
-		// Also find A and R within the kernel
-		shapeMatching << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_deltaPosition, dev_predictPosition, dev_particle_x0, hst_cm0[i], cm, dev_Apq_ptr, dev_n);
-
-		//next rigid body
+		//next body
 		base += size;
 	}
 

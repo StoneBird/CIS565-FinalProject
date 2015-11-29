@@ -173,7 +173,9 @@ void fillPeel(ParticleWrapper * p_out, RayPeel * rp, const glm::vec3 resolution,
 }
 
 __global__
-void transformParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, int size, const glm::mat4 mat, const glm::vec3 body_init_velocity, const float body_mass_scale, const int body_phase){
+void transformParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, int size, 
+			const glm::mat4 mat, const glm::vec3 body_init_velocity, const float body_mass_scale, 
+			const int body_phase, const ParticleType type){
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadId < size){
 		glm::vec3 pos = p_in[threadId].x;
@@ -194,6 +196,7 @@ void transformParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, i
 		p_out[threadId].invmass = p_out[threadId].invmass * body_mass_scale;
 
 		p_out[threadId].phase = body_phase;
+		p_out[threadId].type = type;
 
 		pos_out[pIdx] = tmp.x;
 		pos_out[pIdx + 1] = tmp.y;
@@ -201,7 +204,7 @@ void transformParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, i
 	}
 }
 
-void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos, const glm::mat4 mat, const glm::vec3 body_init_velocity, const float body_mass_scale, const int body_phase){
+void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos, const glm::mat4 mat, const glm::vec3 body_init_velocity, const float body_mass_scale, const int body_phase, const ParticleType body_type){
 	const int blockSideLength = 8;
 	const dim3 blockSize(blockSideLength, blockSideLength);
 	dim3 blocksPerGrid(
@@ -234,7 +237,7 @@ void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos, 
 
 	const int blockSizer = 192;
 	dim3 blockCountr((newSize + blockSizer - 1) / blockSizer);
-	transformParticle << <blockCountr, blockSizer >> >(dev_particle_pos_cache, dev_particle_cache, dev_particles, newSize, mat, body_init_velocity, body_mass_scale, body_phase);
+	transformParticle << <blockCountr, blockSizer >> >(dev_particle_pos_cache, dev_particle_cache, dev_particles, newSize, mat, body_init_velocity, body_mass_scale, body_phase, body_type);
 	checkCUDAError("Wrapper translation");
 
 	// Copy to host

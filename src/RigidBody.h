@@ -39,8 +39,12 @@ protected:
 	// obj phase (group id)
 	int m_phase;
 
-public:
+	// type
+	ParticleType m_type;
 
+public:
+	float m_color[4];
+	
 	//particles
 	//this store particles in local coordinate, regular(no deform)
 	vector<Particle> m_particles;
@@ -62,7 +66,7 @@ public:
 	glm::mat4 getTransformMatrix();
 	float getInvMassScale(){ return m_mass_scale; }
 	int getPhase(){ return m_phase; }
-
+	ParticleType getType(){ return m_type; }
 
 	//init operations
 	bool initObj(const string & filename);
@@ -85,5 +89,7 @@ public:
 
 	void setPhase(int);
 
+	void setType(ParticleType);
 	
+	void setColor(const glm::vec4 &);
 };

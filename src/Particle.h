@@ -5,6 +5,12 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+enum ParticleType
+{
+	SOLID,FLUID
+};
+
+
 struct Particle
 {
 	glm::vec3 x;	//position
@@ -13,6 +19,8 @@ struct Particle
 	float invmass;	//1/mass, 0 means static object, mass = infinity
 
 	int phase;		//group
+
+	ParticleType type;	//type: fluid, solid...
 };
 
 struct ParticleWrapper

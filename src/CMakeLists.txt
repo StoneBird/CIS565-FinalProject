@@ -9,6 +9,8 @@ set(SOURCE_FILES
     "simulate.h"
     "simulate.cu"
 	"rasterizeTools.h"
+    "fluid.h"
+    "fluid.cu"
     )
 
 cuda_add_library(src

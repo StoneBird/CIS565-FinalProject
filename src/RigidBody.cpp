@@ -5,6 +5,7 @@
 
 RigidBody::RigidBody()
 	:m_scale(1.0), m_translate(0.0)
+	, m_type(SOLID)
 {
 }
 
@@ -34,6 +35,11 @@ void RigidBody::setMassScale(float s){
 
 void RigidBody::setPhase(int p){
 	m_phase = p;
+}
+
+void RigidBody::setType(ParticleType t)
+{
+	m_type = t;
 }
 
 glm::mat4 RigidBody::getTransformMatrix()
@@ -133,7 +139,7 @@ void RigidBody::initParticles(float grid_size)
 	// --> Stream compaction
 	// --> Copy array of Particle to host
 	// Apply transformation before calculating center of mass
-	sampleParticles(m_particles, m_particle_pos, getTransformMatrix(), m_init_velocity, m_mass_scale, m_phase);
+	sampleParticles(m_particles, m_particle_pos, getTransformMatrix(), m_init_velocity, m_mass_scale, m_phase,m_type);
 
 	int num_particle = m_particles.size();
 
@@ -150,8 +156,15 @@ void RigidBody::initParticles(float grid_size)
 	}
 	m_cm /= (float)num_particle;
 
-	/*
-	printf("%f %f %f\n", m_particles[0].x.x, m_particles[0].x.y, m_particles[0].x.z);
-	printf("%f %f %f\n", m_particle_pos[0], m_particle_pos[1], m_particle_pos[2]);
-	*/
+	
+}
+
+
+
+void RigidBody::setColor(const glm::vec4 & c)
+{
+	m_color[0] = c.r;
+	m_color[1] = c.g;
+	m_color[2] = c.b;
+	m_color[3] = c.a;
 }
