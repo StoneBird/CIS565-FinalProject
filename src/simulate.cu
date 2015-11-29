@@ -249,8 +249,8 @@ void hitTestVoxelSolid(int num_voxel, float diameter, int particle_id, int voxel
 	int n = 0;
 	for (int i = 0; i < grid[voxel_id].num; i++)
 	{
-		if (particles[grid[voxel_id].particle_id[i]].phase != particles[particle_id].phase
-			&& particles[grid[voxel_id].particle_id[i]].type == SOLID)
+		if (particles[grid[voxel_id].particle_id[i]].phase != particles[particle_id].phase)
+			//&& particles[grid[voxel_id].particle_id[i]].type == SOLID)
 		{
 			// Distance vector from particle i to particle j (on particle centers)
 			glm::vec3 d = predict_positions[grid[voxel_id].particle_id[i]] - predict_positions[particle_id];
@@ -308,24 +308,30 @@ Particle * particles, Voxel * grid, int * dev_n)
 		return;
 	}
 
-
+	
 	float density = 0.0f;	//for particles in this voxel
 	for (int i = 0; i < grid[voxel_id].num; i++)
 	{
+		if (grid[voxel_id].particle_id[i] == particle_id)
+		{
+			continue;
+		}
+
+
 		glm::vec3 d = predict_positions[grid[voxel_id].particle_id[i]] - predict_positions[particle_id];
 		// If particles overlap
-		if (glm::length(d) <= diameter)
-		{
-			n++;
-			density += (particles[grid[voxel_id].particle_id[i]].type == FLUID ? 1.0f : (particles[particle_id].invmass < FLT_EPSILON ? 10.0f : 1.0f / particles[particle_id].invmass))
-				* SmoothKernel(predict_positions[particle_id] - predict_positions[grid[voxel_id].particle_id[i]], H_KERNAL_WIDTH);
 
-			gradient += gradientSmoothKernel(predict_positions[particle_id] - predict_positions[grid[voxel_id].particle_id[i]], H_KERNAL_WIDTH);
+		n++;
+		density += (particles[grid[voxel_id].particle_id[i]].type == FLUID ? 1.0f : (particles[particle_id].invmass < FLT_EPSILON ? 10.0f : 1.0f / particles[particle_id].invmass))
+			* SmoothKernel(predict_positions[particle_id] - predict_positions[grid[voxel_id].particle_id[i]], H_KERNAL_WIDTH);
 
-			delta_pos += -d * 1.0f;
-		}
+		gradient += gradientSmoothKernel(predict_positions[particle_id] - predict_positions[grid[voxel_id].particle_id[i]], H_KERNAL_WIDTH);
+
+		//tmp
+		//delta_pos += -0.5f * glm::normalize(d) * (diameter - glm::length(d));
+		delta_pos += -1.0f * glm::normalize(d);
+
 	}
-
 	//correct version should update based on gradient matrix of Kernal 
 	//update all positions together
 
@@ -393,6 +399,7 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 				{
 					for (int z = -1; z <= 1; z++)
 					{
+						
 						density += hitTestVoxelFluid(gradient,delta_pos,n,
 							num_voxel, diameter, particle_id,
 							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
@@ -404,8 +411,10 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 			float lambda = -(density / 1.0f - 1.0f) / gradient;
 			
 			//deltaPositions[particle_id] += delta_pos / (n > 0 ? (float)n: 100.0f) * 1.0f * lambda;
-			//printf("%f,%f,%f\n", delta_pos.x, delta_pos.y, delta_pos.z);
-			deltaPositions[particle_id] += n > 0 ? 0.0000001f*glm::normalize(delta_pos) : glm::vec3(0.0f);
+			//if (n > 0){
+			//	printf("%f,%f,%f\t%f,%f,%d\n", delta_pos.x, delta_pos.y, delta_pos.z, density, gradient, n);
+			//}
+			deltaPositions[particle_id] += n > 0 ? 0.01f * delta_pos / (float) n : glm::vec3(0.0f);
 			dev_n[particle_id] += 1;
 
 		}
@@ -588,17 +597,6 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 		}
 		else if (body_type == FLUID)
 		{
-			//fluids
-
-			//get pi (density)
-
-			//find neighbour particles
-
-			//generate constraint matrix C (
-
-			//get gradient of C
-
-			//get lambda (same for all particles)
 		}
 
 		
