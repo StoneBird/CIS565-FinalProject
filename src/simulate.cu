@@ -302,6 +302,45 @@ float gradientSmoothKernel(glm::vec3 r, float h)
 	return 1.0f;
 }
 
+
+__device__
+void hitTestVoxelFluid_SolidCollision(int num_voxel, float diameter, int particle_id, int voxel_id, glm::vec3 * predict_positions, glm::vec3 * delta_positions,
+Particle * particles, Voxel * grid, int * dev_n)
+{
+	if (voxel_id < 0 || voxel_id >= num_voxel)
+	{
+		//voxel_id is invalid
+		return;
+	}
+	// Delta X for collision
+	glm::vec3 delta_pos(0.0);
+	// Average count
+	int n = 0;
+	for (int i = 0; i < grid[voxel_id].num; i++)
+	{
+		if (grid[voxel_id].particle_id[i] == particle_id)
+		{
+			continue;
+		}
+		// Distance vector from particle i to particle j (on particle centers)
+		glm::vec3 d = predict_positions[grid[voxel_id].particle_id[i]] - predict_positions[particle_id];
+		// If particles overlap
+		if (glm::length(d) <= diameter)
+		{
+			n++;
+			// Momentum weighing based on particle mass
+			// Not true momentum, but approximation
+			float momentWeight = -particles[particle_id].invmass / (particles[particle_id].invmass + particles[grid[voxel_id].particle_id[i]].invmass);
+			// Move particle i along the vector so that i and j are in the post-collision states
+			delta_pos += momentWeight * glm::normalize(d) * (diameter - glm::length(d));
+		}
+
+	}
+	// Apply average delta X position (treat as results of constraint solver)
+	delta_positions[particle_id] += delta_pos;
+	dev_n[particle_id] += n;
+}
+
 __device__
 float hitTestVoxelFluid(float & gradient, glm::vec3 & delta_pos,int & n,
 int num_voxel, float diameter, int particle_id, int voxel_id, glm::vec3 * predict_positions, glm::vec3 * delta_positions,
@@ -326,13 +365,13 @@ Particle * particles, Voxel * grid, int * dev_n)
 		glm::vec3 d = predict_positions[grid[voxel_id].particle_id[i]] - predict_positions[particle_id];
 		// If particles overlap
 
-		if (glm::length(d) < diameter)
-		{
-			float momentWeight = -particles[particle_id].invmass / (particles[particle_id].invmass + particles[grid[voxel_id].particle_id[i]].invmass);
-			// Move particle i along the vector so that i and j are in the post-collision states
-			delta_pos += momentWeight * glm::normalize(d) * (diameter - glm::length(d));
-			n++;
-		}
+		//if (glm::length(d) < diameter)
+		//{
+		//	float momentWeight = -particles[particle_id].invmass / (particles[particle_id].invmass + particles[grid[voxel_id].particle_id[i]].invmass);
+		//	// Move particle i along the vector so that i and j are in the post-collision states
+		//	delta_pos += momentWeight * glm::normalize(d) * (diameter - glm::length(d));
+		//	n++;
+		//}
 		
 
 		n++;
@@ -345,7 +384,7 @@ Particle * particles, Voxel * grid, int * dev_n)
 
 		//tmp
 		//delta_pos += -0.5f * glm::normalize(d) * (diameter - glm::length(d));
-		delta_pos += -0.001f * glm::normalize(d) / glm::dot(d,d);
+		delta_pos += - 0.001f * glm::normalize(d) / glm::dot(d,d);
 
 		
 
@@ -355,6 +394,8 @@ Particle * particles, Voxel * grid, int * dev_n)
 
 	return density;
 }
+
+
 
 
 
@@ -411,16 +452,29 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 			glm::vec3 delta_pos(0.0f);
 			int n = 0;
 
+
+			//solid collision
+			for (int x = -1; x <= 1; x++)
+			{
+				for (int y = -1; y <= 1; y++)
+				{
+					for (int z = -1; z <= 1; z++)
+					{
+						hitTestVoxelFluid_SolidCollision(num_voxel, diameter, particle_id,
+							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
+							predictPositions, deltaPositions, particles, grid, dev_n);
+					}
+				}
+			}
+
+
+			//fluid density constraint
 			for (int x = -2; x <= 2; x++)
 			{
 				for (int y = -2; y <= 2; y++)
 				{
 					for (int z = -2; z <= 2; z++)
 					{
-						//hitTestVoxelSolid(num_voxel, diameter, particle_id,
-						//	voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
-						//	predictPositions, deltaPositions, particles, grid, dev_n);
-
 						density += hitTestVoxelFluid(gradient,delta_pos,n,
 							num_voxel, diameter, particle_id,
 							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
