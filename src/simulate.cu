@@ -384,7 +384,7 @@ Particle * particles, Voxel * grid, int * dev_n)
 
 		//tmp
 		//delta_pos += -0.5f * glm::normalize(d) * (diameter - glm::length(d));
-		delta_pos += - 0.001f * glm::normalize(d) / glm::dot(d,d);
+		delta_pos += - 0.0001f * glm::normalize(d) / glm::dot(d,d);
 
 		
 
@@ -491,8 +491,8 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 			//	printf("%f,%f,%f\t%f,%f,%d\n", delta_pos.x, delta_pos.y, delta_pos.z, density, gradient, n);
 			//}
 			n = min(n, 1);
+			
 			deltaPositions[particle_id] += max( -1.0f * diameter, min(0.0f, density - 6.0f / (diameter*diameter)) ) * delta_pos / (float)n;
-			//deltaPositions[particle_id] += n > 0 ? 0.01f * delta_pos / (float) n : glm::vec3(0.0f);
 			dev_n[particle_id] += 1;
 
 		}
