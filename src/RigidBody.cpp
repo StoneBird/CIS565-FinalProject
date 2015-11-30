@@ -127,6 +127,10 @@ void RigidBody::initParticles(int x_res)
 
 void RigidBody::initParticles(float grid_size)
 {
+	m_x0.clear();
+	m_particles.clear();
+	m_particle_pos.clear();
+
 	m_grid_length = grid_size;
 
 	m_resolution = glm::ceil((m_max - m_min) / m_grid_length);

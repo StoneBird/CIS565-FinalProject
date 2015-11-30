@@ -440,62 +440,62 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 				}
 			}
 		}
-		else if (particles[particle_id].type == FLUID)
-		{
-			//C_i(x) = density/density0 - 1.0
-			//gradient_C_i(x)
+		//else if (particles[particle_id].type == FLUID)
+		//{
+		//	//C_i(x) = density/density0 - 1.0
+		//	//gradient_C_i(x)
 
-			//delta_X = - C_i / sum( gradient(C_i)^2 )
+		//	//delta_X = - C_i / sum( gradient(C_i)^2 )
 
-			float density = 0.0f;
-			float gradient = 0.0f;
-			glm::vec3 delta_pos(0.0f);
-			int n = 0;
-
-
-			//solid collision
-			for (int x = -1; x <= 1; x++)
-			{
-				for (int y = -1; y <= 1; y++)
-				{
-					for (int z = -1; z <= 1; z++)
-					{
-						hitTestVoxelFluid_SolidCollision(num_voxel, diameter, particle_id,
-							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
-							predictPositions, deltaPositions, particles, grid, dev_n);
-					}
-				}
-			}
+		//	float density = 0.0f;
+		//	float gradient = 0.0f;
+		//	glm::vec3 delta_pos(0.0f);
+		//	int n = 0;
 
 
-			//fluid density constraint
-			for (int x = -2; x <= 2; x++)
-			{
-				for (int y = -2; y <= 2; y++)
-				{
-					for (int z = -2; z <= 2; z++)
-					{
-						density += hitTestVoxelFluid(gradient,delta_pos,n,
-							num_voxel, diameter, particle_id,
-							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
-							predictPositions, deltaPositions, particles, grid, dev_n);
-					}
-				}
-			}
+		//	//solid collision
+		//	for (int x = -1; x <= 1; x++)
+		//	{
+		//		for (int y = -1; y <= 1; y++)
+		//		{
+		//			for (int z = -1; z <= 1; z++)
+		//			{
+		//				hitTestVoxelFluid_SolidCollision(num_voxel, diameter, particle_id,
+		//					voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
+		//					predictPositions, deltaPositions, particles, grid, dev_n);
+		//			}
+		//		}
+		//	}
 
-			//float c_i = (density / 1.0f - 1.0f);
-			//float lambda = -(density / 1.0f - 1.0f) / gradient;
-			
-			//deltaPositions[particle_id] += delta_pos / (n > 0 ? (float)n: 100.0f) * 1.0f * lambda;
-			//if (n > 0){
-			//	printf("%f,%f,%f\t%f,%f,%d\n", delta_pos.x, delta_pos.y, delta_pos.z, density, gradient, n);
-			//}
-			n = min(n, 1);
-			
-			deltaPositions[particle_id] += max( -1.0f * diameter, min(0.0f, density - 6.0f / (diameter*diameter)) ) * delta_pos / (float)n;
-			dev_n[particle_id] += 1;
 
-		}
+		//	//fluid density constraint
+		//	for (int x = -2; x <= 2; x++)
+		//	{
+		//		for (int y = -2; y <= 2; y++)
+		//		{
+		//			for (int z = -2; z <= 2; z++)
+		//			{
+		//				density += hitTestVoxelFluid(gradient,delta_pos,n,
+		//					num_voxel, diameter, particle_id,
+		//					voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
+		//					predictPositions, deltaPositions, particles, grid, dev_n);
+		//			}
+		//		}
+		//	}
+
+		//	//float c_i = (density / 1.0f - 1.0f);
+		//	//float lambda = -(density / 1.0f - 1.0f) / gradient;
+		//	
+		//	//deltaPositions[particle_id] += delta_pos / (n > 0 ? (float)n: 100.0f) * 1.0f * lambda;
+		//	//if (n > 0){
+		//	//	printf("%f,%f,%f\t%f,%f,%d\n", delta_pos.x, delta_pos.y, delta_pos.z, density, gradient, n);
+		//	//}
+		//	n = min(n, 1);
+		//	
+		//	deltaPositions[particle_id] += max( -1.0f * diameter, min(0.0f, density - 6.0f / (diameter*diameter)) ) * delta_pos / (float)n;
+		//	dev_n[particle_id] += 1;
+
+		//}
 	}
 }
 
