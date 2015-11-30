@@ -13,9 +13,9 @@
 #include "particleSampling.h"
 #include "simulate.h"
 
+#define GRID_LENGTH_DEFAULT (0.273438f)
 
-
-#define OBJ_ARR_SIZE 2
+#define OBJ_ARR_SIZE 3
 
 #define GRAVITY (glm::vec3(0.0f,-9.8f,0.0f))
 #define FPS 60.0f
@@ -59,33 +59,58 @@ int main(int argc, char **argv) {
 		//rigid_body[0].initObj(argv[1]);
 		//rigid_body[0].initParticles(10);
 
+		int c = 0;
+		uniform_grid_length = GRID_LENGTH_DEFAULT;
 		// water fill
-		rigid_body[0].setPhase(0);
-		rigid_body[0].setScale(glm::vec3(1.5f, 1.5f, 1.5f));
-		rigid_body[0].setTranslate(glm::vec3(0.0f, 5.0f, 0.0f));
-		//rigid_body[0].setRotation(glm::rotate(5.0f*(float)PI / 180.0f, glm::vec3(0.0f, 0.0f, 1.0f)));
-		rigid_body[0].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
-		//rigid_body[0].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
-		rigid_body[0].setMassScale(1.0f);
-		rigid_body[0].setType(SOLID);
-		rigid_body[0].setColor(glm::vec4(0.0f, 0.5f, 1.0f, 1.0f));
-		rigid_body[0].initObj(argv[1]);
-		rigid_body[0].initParticles(10);
+		c = 0;
+		rigid_body[c].setPhase(c);
+		//rigid_body[c].setScale(glm::vec3(2.5f, 2.5f, 2.5f));
+		rigid_body[c].setTranslate(glm::vec3(-5.0f, 3.0f, 0.0f));
+		//rigid_body[c].setTranslate(glm::vec3(1.0f, 5.0f, 0.0f));
+		//rigid_body[c].setRotation(glm::rotate(5.0f*(float)PI / 180.0f, glm::vec3(0.0f, 0.0f, 1.0f)));
+		rigid_body[c].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
+		//rigid_body[c].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
+		rigid_body[c].setMassScale(1.0f);
+		rigid_body[c].setType(SOLID);
+		rigid_body[c].setColor(glm::vec4(0.0f, 0.5f, 1.0f, 1.0f));
+		rigid_body[c].initObj("../objs/suzanne.obj");
+		rigid_body[c].initParticles(uniform_grid_length);
 
-		uniform_grid_length = rigid_body[0].getGridLength();
+		uniform_grid_length = rigid_body[c].getGridLength();
+		std::cout << uniform_grid_length;
+
+		c = 1;
+		rigid_body[c].setPhase(c);
+		rigid_body[c].setScale(glm::vec3(2.5f,2.5f,2.5f));
+		//rigid_body[c].setScale(glm::vec3(1.5f, 1.5f, 1.5f));
+		rigid_body[c].setTranslate(glm::vec3(1.0f, 1.0f, 1.0f));
+		//rigid_body[c].setRotation(glm::rotate(5.0f*(float)PI / 180.0f, glm::vec3(0.0f, 0.0f, 1.0f)));
+		rigid_body[c].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
+		//rigid_body[c].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
+		rigid_body[c].setMassScale(1.0f);
+		rigid_body[c].setType(FLUID);
+		rigid_body[c].setColor(glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
+		rigid_body[c].initObj("../objs/cube.obj");
+		rigid_body[c].initParticles(uniform_grid_length);
+
+
 
 		if (argc == 3){
-			rigid_body[1].setPhase(1);
-			rigid_body[1].setTranslate(glm::vec3(0.0f, -3.0f, 0.0f));
-			rigid_body[1].setRotation(glm::rotate(180.0f*(float)PI / 180.0f, glm::vec3(0.0f, 1.0f, 0.0f)) *
+			c = 2;
+			rigid_body[c].setPhase(c);
+			rigid_body[c].setTranslate(glm::vec3(0.0f, -3.0f, 0.0f));
+			rigid_body[c].setRotation(glm::rotate(180.0f*(float)PI / 180.0f, glm::vec3(0.0f, 1.0f, 0.0f)) *
 				glm::rotate(90.0f*(float)PI / 180.0f, glm::vec3(1.0f, 0.0f, 0.0f)));
-			rigid_body[1].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
-			rigid_body[1].setMassScale(0.0f);
-			rigid_body[1].setType(SOLID);
-			rigid_body[1].setColor(glm::vec4(1.0f, 0.5f, 0.0f, 0.3f));
-			rigid_body[1].initObj(argv[2]);
-			rigid_body[1].initParticles(uniform_grid_length);
+			rigid_body[c].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
+			rigid_body[c].setMassScale(0.0f);
+			rigid_body[c].setType(SOLID);
+			rigid_body[c].setColor(glm::vec4(1.0f, 0.5f, 0.0f, 0.3f));
+			rigid_body[c].initObj(argv[2]);
+			rigid_body[c].initParticles(uniform_grid_length);
 		}
+
+
+		
 
 		/*
 

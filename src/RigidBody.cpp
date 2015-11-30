@@ -64,7 +64,8 @@ void RigidBody::initBoundingBox()
 {
 	m_min = glm::vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 	m_max = glm::vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-	
+	//m_min = glm::vec3(9999.0f);
+	//m_max = glm::vec3(-9999.0f);
 
 	//get bounding box
 	//for (auto shape : m_shapes)
