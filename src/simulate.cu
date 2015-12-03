@@ -295,14 +295,14 @@ __device__
 inline float SmoothKernel(float r, float h)
 {
 	//poly 6 kernel
-	//return r > h ? 0.0f : 315.0f / 64.0f / (float)PI / powf(h, 9.0f) * powf(h*h - r*r, 3.0f);
+	return r > h ? 0.0f : 315.0f / 64.0f / (float)PI / powf(h, 9.0f) * powf(h*h - r*r, 3.0f);
 
 
 	//for test
-	float res = r > h ? 0.0f : 315.0f / 64.0f / (float)PI / powf(h, 9.0f) * powf(h*h - r*r, 3.0f);
+	//float res = r > h ? 0.0f : 315.0f / 64.0f / (float)PI / powf(h, 9.0f) * powf(h*h - r*r, 3.0f);
 	//printf("%f,%f\tres:%f\n", r, h, res);
 	
-	return res;
+	//return res;
 
 	//nearest neighbour
 	//return 1.0f / glm::dot(r,r);
@@ -321,8 +321,9 @@ inline glm::vec3 gradientSmoothKernel(glm::vec3 vec_r, float h)
 	float r = glm::length(vec_r);
 	//spiky kernel gradient
 
-	return r>h ? glm::vec3(0.0f) : 15.0f / (float)PI / powf(h, 6.0f) * 
-		(-3.0f * h*h + 6.0f * h * r - 3.0f * r* r ) / r * vec_r;
+	//return r>h ? glm::vec3(0.0f) : 15.0f / (float)PI / powf(h, 6.0f) * 
+	//	(-3.0f * h*h + 6.0f * h * r - 3.0f * r* r ) / r * vec_r;
+	return glm::normalize(vec_r);
 
 
 	//tmp
@@ -454,7 +455,7 @@ Particle * particles, Voxel * grid, int * dev_n)
 		// Distance vector from particle i to particle j (on particle centers)
 		glm::vec3 d = predict_positions[grid[voxel_id].particle_id[i]] - predict_positions[particle_id];
 		
-		glm::vec3 g = -gradientSmoothKernel(d, getH(diameter)) / rho_0;
+		glm::vec3 g = gradientSmoothKernel(d, getH(diameter)) / rho_0;
 
 		//WARNING: race conditions may exist
 		
@@ -582,7 +583,7 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 			//printf("%f,%f,%f,\tdiameter=%f\n", density , rho_0 , denominator,diameter);
 
 
-			deltaPositions[particle_id] += min(0.0f, lambda_i) * sum_gradient / rho_0;
+			deltaPositions[particle_id] += 8.5f * min(0.0f, lambda_i) * sum_gradient / rho_0;
 			dev_n[particle_id] += 1;
 
 			//second loop used to calculate delta pos for neighbour particle
