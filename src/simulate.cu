@@ -285,20 +285,31 @@ void hitTestVoxelSolid(int num_voxel, float diameter, int particle_id, int voxel
 
 
 // ------------------fluid---------------------
-
+__device__
+inline float getH(float diameter)
+{
+	return ((float)NEIGHBOUR_R + 0.5f) * diameter;
+}
 
 __device__
-float SmoothKernel(float r, float h)
+inline float SmoothKernel(float r, float h)
 {
 	//poly 6 kernel
-	return r > h ? 0.0f : 315.0f / 64.0f / (float)PI / powf(h, 9.0f) * powf(h*h - r*r, 3.0f);
+	//return r > h ? 0.0f : 315.0f / 64.0f / (float)PI / powf(h, 9.0f) * powf(h*h - r*r, 3.0f);
+
+
+	//for test
+	float res = r > h ? 0.0f : 315.0f / 64.0f / (float)PI / powf(h, 9.0f) * powf(h*h - r*r, 3.0f);
+	//printf("%f,%f\tres:%f\n", r, h, res);
+	
+	return res;
 
 	//nearest neighbour
 	//return 1.0f / glm::dot(r,r);
 }
 
 __device__
-glm::vec3 gradientSmoothKernel(glm::vec3 vec_r, float h)
+inline glm::vec3 gradientSmoothKernel(glm::vec3 vec_r, float h)
 {
 	//r = || pi - pj||
 
@@ -309,6 +320,7 @@ glm::vec3 gradientSmoothKernel(glm::vec3 vec_r, float h)
 
 	float r = glm::length(vec_r);
 	//spiky kernel gradient
+
 	return r>h ? glm::vec3(0.0f) : 15.0f / (float)PI / powf(h, 6.0f) * 
 		(-3.0f * h*h + 6.0f * h * r - 3.0f * r* r ) / r * vec_r;
 
@@ -348,6 +360,7 @@ Particle * particles, Voxel * grid, int * dev_n)
 			float momentWeight = -particles[particle_id].invmass / (particles[particle_id].invmass + particles[grid[voxel_id].particle_id[i]].invmass);
 			// Move particle i along the vector so that i and j are in the post-collision states
 			delta_pos += momentWeight * glm::normalize(d) * (diameter - glm::length(d));
+						
 		}
 
 	}
@@ -376,10 +389,11 @@ Particle * particles, Voxel * grid, int * dev_n)
 			continue;
 		}
 
-
+		//point from cur to neighbour
 		glm::vec3 d = predict_positions[grid[voxel_id].particle_id[i]] - predict_positions[particle_id];
-		// If particles overlap
-
+		
+		
+		//// If particles overlap
 		//if (glm::length(d) < diameter)
 		//{
 		//	float momentWeight = -particles[particle_id].invmass / (particles[particle_id].invmass + particles[grid[voxel_id].particle_id[i]].invmass);
@@ -393,16 +407,17 @@ Particle * particles, Voxel * grid, int * dev_n)
 		//density += (particles[grid[voxel_id].particle_id[i]].type == FLUID ? 1.0f : (particles[particle_id].invmass < FLT_EPSILON ? 10.0f : 1.0f / particles[particle_id].invmass))
 		//	* SmoothKernel(predict_positions[particle_id] - predict_positions[grid[voxel_id].particle_id[i]], H_KERNAL_WIDTH);
 
-		density += SmoothKernel(d.length(), ((float)NEIGHBOUR_R+0.5f) * diameter);
+		density += SmoothKernel(glm::length(d), getH(diameter));
 
-		glm::vec3 g = gradientSmoothKernel(d, ((float)NEIGHBOUR_R + 0.5f) * diameter);
-		gradient += g;
+		glm::vec3 g = gradientSmoothKernel(d, getH(diameter));
+		
+		//FACT: g and d has opposite direction
+
+		gradient += -g;
 		gradient2 += glm::dot(g,g);
 
 		//tmp
 		//delta_pos += -0.5f * glm::normalize(d) * (diameter - glm::length(d));
-		
-		
 		//delta_pos += - 0.0001f * glm::normalize(d) / glm::dot(d,d);
 
 		
@@ -439,11 +454,12 @@ Particle * particles, Voxel * grid, int * dev_n)
 		// Distance vector from particle i to particle j (on particle centers)
 		glm::vec3 d = predict_positions[grid[voxel_id].particle_id[i]] - predict_positions[particle_id];
 		
-		glm::vec3 g = -gradientSmoothKernel(d, ((float)NEIGHBOUR_R + 0.5f) * diameter) / rho_0;
+		glm::vec3 g = -gradientSmoothKernel(d, getH(diameter)) / rho_0;
 
 		//WARNING: race conditions may exist
-		delta_positions[particle_id] += lambda_i * g;
-		dev_n[particle_id] += g == glm::vec3(0.0f) ? 0 : 1;
+		
+		//delta_positions[particle_id] += lambda_i * g;
+		//dev_n[particle_id] += g == glm::vec3(0.0f) ? 0 : 1;
 	}
 
 	
@@ -513,7 +529,13 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 				{
 					for (int z = -1; z <= 1; z++)
 					{
-						hitTestVoxelFluid_SolidCollision(num_voxel, diameter, particle_id,
+						////contains self collision
+						//hitTestVoxelFluid_SolidCollision(num_voxel, diameter, particle_id,
+						//	voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
+						//	predictPositions, deltaPositions, particles, grid, dev_n);
+
+						//no self collision
+						hitTestVoxelSolid(num_voxel, diameter, particle_id,
 							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
 							predictPositions, deltaPositions, particles, grid, dev_n);
 					}
@@ -523,6 +545,11 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 
 			//first loop used to get the sum of density rho_i, sum of gradient
 			//fluid density constraint
+			//for (int x = -NEIGHBOUR_R; x <= NEIGHBOUR_R; x++)
+			//{
+			//	for (int y = -NEIGHBOUR_R; y <= NEIGHBOUR_R; y++)
+			//	{
+			//		for (int z = -NEIGHBOUR_R; z <= NEIGHBOUR_R; z++)
 			for (int x = -NEIGHBOUR_R; x <= NEIGHBOUR_R; x++)
 			{
 				for (int y = -NEIGHBOUR_R; y <= NEIGHBOUR_R; y++)
@@ -538,9 +565,22 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 			}
 
 
-			float rho_0 = 1.0f / powf(diameter, 3.0f);
+			float rho_0 = 1.0f / powf(diameter/0.99f, 3.0f);
 
-			float lambda_i = -(density / rho_0 - 1.0f) / (sum_gradient2 + glm::dot(sum_gradient, sum_gradient));
+			// when density / rho_0 -1.0f > 0 , move
+			// i.e. when lambda < 0, move
+			
+			//float lambda_i =  -(density / rho_0 - 1.0f) / (sum_gradient2 + glm::dot(sum_gradient, sum_gradient));
+
+			
+			
+			//for testing
+			float ci = density / rho_0 - 1.0f;
+			float denominator = sum_gradient2 + glm::dot(sum_gradient, sum_gradient);
+			float lambda_i = -ci / denominator;
+
+			//printf("%f,%f,%f,\tdiameter=%f\n", density , rho_0 , denominator,diameter);
+
 
 			deltaPositions[particle_id] += min(0.0f, lambda_i) * sum_gradient / rho_0;
 			dev_n[particle_id] += 1;

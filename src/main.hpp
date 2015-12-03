@@ -102,7 +102,7 @@ void mouseWheelCallback(GLFWwindow* window, double xoffset, double yoffset);
 
 void updateCamera();
 float scale = 1.0f;
-float x_trans = 0.0f, y_trans = 0.0f, z_trans = 10.0f;
+float x_trans = 0.0f, y_trans = 0.0f, z_trans = 20.0f;
 float x_angle = 0.0f, y_angle = 0.0f;
 
 
