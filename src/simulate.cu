@@ -23,6 +23,7 @@
 #define NEIGHBOUR_R (1)
 #define LAMBDA_EPSILON (1.0f)
 
+#define SPLEEFING_COFF (1000.0f)
 
 #define RHO0 (1.0f)
 
@@ -316,7 +317,7 @@ inline float getH(float diameter)
 __device__
 inline float getRHO0(float diameter)
 {
-	return 1.0f / powf(diameter / 0.99f, 3.0f);
+	return 0.9f * 1.0f / powf(diameter / 0.99f, 3.0f);
 }
 
 __device__
@@ -869,7 +870,14 @@ void updatePositionFloatArray(int N, glm::vec3 * predictions, Particle * particl
 
 		// Particle sleeping
 		// Truncate super small values so avoid if-statement
-		particles[threadId].x = particles[threadId].x + glm::trunc((predictions[threadId] - particles[threadId].x)*1000.0f) / 1000.0f;
+		if (particles[threadId].type == SOLID)
+		{
+			particles[threadId].x = particles[threadId].x + glm::trunc((predictions[threadId] - particles[threadId].x)*SPLEEFING_COFF) / SPLEEFING_COFF;
+		}
+		else
+		{
+			particles[threadId].x = particles[threadId].x + (predictions[threadId] - particles[threadId].x);
+		}
 
 		// Update positions
 		positions[3 * threadId] = particles[threadId].x.x;
