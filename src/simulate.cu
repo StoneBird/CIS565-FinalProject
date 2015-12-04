@@ -44,6 +44,9 @@ static Voxel * dev_grid;
 static int * dev_particle_voxel_id;
 
 
+//lock per particle
+static int * dev_mutex;
+
 //--------data for shape rematching--------------
 //struct RigidBodyWrapper
 //{
@@ -111,6 +114,11 @@ void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 	
 	cudaMalloc(&dev_particle_x0, num_particles * sizeof(glm::vec3));
 	
+	//lock
+	cudaMalloc(&dev_mutex, num_particles * sizeof(int));
+	cudaMemset(dev_mutex, 0, num_particles * sizeof(int));
+
+
 	int cur = 0;
 	//glm::vec3 * hst_cm0 = new glm::vec3[num_rigidBody];
 
@@ -175,6 +183,11 @@ void endSimulation()
 	cudaFree(dev_particle_voxel_id);
 
 	cudaFree(dev_particle_x0);
+
+
+	//lock
+	cudaFree(dev_mutex);
+
 
 	if (hst_cm0 != NULL)
 	{
@@ -288,8 +301,8 @@ void hitTestVoxelSolid(int num_voxel, float diameter, int particle_id, int voxel
 __device__
 inline float getH(float diameter)
 {
-	//return ((float)NEIGHBOUR_R + 0.5f) * diameter;
-	return (float)NEIGHBOUR_R * diameter;
+	return ((float)NEIGHBOUR_R + 0.5f) * diameter;
+	//return (float)NEIGHBOUR_R * diameter;
 }
 
 __device__
@@ -431,7 +444,7 @@ Particle * particles, Voxel * grid, int * dev_n)
 
 
 __device__
-void fluidNeighbourEnforce(float lambda_i, float rho_0,
+void fluidNeighbourEnforce(float lambda_i, float rho_0, int * mutex,
 int num_voxel, float diameter, int particle_id, int voxel_id, glm::vec3 * predict_positions, glm::vec3 * delta_positions,
 Particle * particles, Voxel * grid, int * dev_n)
 {
@@ -455,10 +468,53 @@ Particle * particles, Voxel * grid, int * dev_n)
 		
 		glm::vec3 g = gradientSmoothKernel(d, getH(diameter)) / rho_0;
 
+		
+		
 		//WARNING: race conditions may exist
 		
-		//delta_positions[grid[voxel_id].particle_id[i]] += - lambda_i * g;
-		//dev_n[grid[voxel_id].particle_id[i]] += g == glm::vec3(0.0f) ? 0 : 1;
+
+		//lock
+		
+		//int old = mutex[grid[voxel_id].particle_id[i]];
+		//int old;
+		//do
+		//{
+		//	old = atomicCAS(&mutex[grid[voxel_id].particle_id[i]], 0, 1);
+		//} while (0 != old);
+
+
+		//while (atomicCAS(&mutex[grid[voxel_id].particle_id[i]], 0, 1) != 0){}
+
+
+
+		delta_positions[grid[voxel_id].particle_id[i]] += - min(0.0f,lambda_i) * g;
+		dev_n[grid[voxel_id].particle_id[i]] += 1;
+
+
+		//unlock
+		//atomicExch(&mutex[grid[voxel_id].particle_id[i]], 0);
+		//mutex[grid[voxel_id].particle_id[i]] = 0;
+		//atomicCAS(&mutex[grid[voxel_id].particle_id[i]], 1, 0);
+
+
+
+		//if (/*particles[particle_id].y < -1.0f &&*/ particle_id == 1000)
+		//{
+		//	printf("%f,%f,%f\n", lambda_i, d.x, g.x);
+		//}
+		
+
+		//int assume = dev_n[grid[voxel_id].particle_id[i]];
+
+		//do
+		//{
+		//	assume = atomicAdd(&dev_n[grid[voxel_id].particle_id[i]], 1);
+		//} while (assume == dev_n[grid[voxel_id].particle_id[i]]);
+
+		//delta_positions[grid[voxel_id].particle_id[i]] +=  min(0.0f,lambda_i) * g;
+		
+
+		
 
 		//glm::vec3 delta = -lambda_i * g / rho_0;
 		//atomicAdd(&delta_positions[grid[voxel_id].particle_id[i]].x, );
@@ -482,8 +538,8 @@ Particle * particles, Voxel * grid, int * dev_n)
 
 //Handle Constraints
 __global__
-void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
-	, glm::vec3 * predictPositions, glm::vec3 * deltaPositions, Particle * particles,Voxel * grid, int * ids, float delta_t, int * dev_n)
+void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution,int * mutex,
+	 glm::vec3 * predictPositions, glm::vec3 * deltaPositions, Particle * particles,Voxel * grid, int * ids, float delta_t, int * dev_n)
 {
 
 	int particle_id = blockDim.x * blockIdx.x + threadIdx.x;
@@ -532,10 +588,10 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 				{
 					for (int z = -1; z <= 1; z++)
 					{
-						////contains self collision
-						//hitTestVoxelFluid_SolidCollision(num_voxel, diameter, particle_id,
-						//	voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
-						//	predictPositions, deltaPositions, particles, grid, dev_n);
+						//contains self collision
+						/*hitTestVoxelFluid_SolidCollision(num_voxel, diameter, particle_id,
+							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
+							predictPositions, deltaPositions, particles, grid, dev_n);*/
 
 						//no self collision
 						hitTestVoxelSolid(num_voxel, diameter, particle_id,
@@ -580,12 +636,12 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 			//for testing
 			float ci = density / rho_0 - 1.0f;
 			float denominator = sum_gradient2 + glm::dot(sum_gradient, sum_gradient);
-			float lambda_i = - 1.0f * ci / denominator;
+			float lambda_i = - ci / denominator;
 
-			if (/*particles[particle_id].y < -1.0f &&*/ particle_id == 1000)
-			{
-				printf("%f,%f,%f,\tdiameter=%f\n", density, rho_0, denominator, diameter);
-			}
+			//if (/*particles[particle_id].y < -1.0f &&*/ particle_id == 955)
+			//{
+			//	printf("%f,%f,%f,lambda=%f\n", density, rho_0, denominator, lambda_i);
+			//}
 				
 			
 
@@ -599,7 +655,7 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 				{
 					for (int z = -NEIGHBOUR_R; z <= NEIGHBOUR_R; z++)
 					{
-						fluidNeighbourEnforce(lambda_i,rho_0,
+						fluidNeighbourEnforce(lambda_i,rho_0,mutex,
 							num_voxel, diameter, particle_id,
 							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
 							predictPositions, deltaPositions, particles, grid, dev_n);
@@ -749,8 +805,8 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 
 	//detect collisions and generate collision constraints
 	//for fluid, get density and constraints
-	handleCollision << <blockCountr, blockSizer >> >(num_particles, num_voxel, grid_length * 0.99f,
-		grid_resolution, dev_predictPosition, dev_deltaPosition, dev_particles, dev_grid, dev_particle_voxel_id, delta_t, dev_n);
+	handleCollision << <blockCountr, blockSizer >> >(num_particles, num_voxel, grid_length * 0.99f, grid_resolution, dev_mutex,
+		dev_predictPosition, dev_deltaPosition, dev_particles, dev_grid, dev_particle_voxel_id, delta_t, dev_n);
 	checkCUDAError("ERROR: handle collision");
 
 	cudaDeviceSynchronize();
@@ -803,9 +859,7 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 			shapeMatching << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_deltaPosition, dev_predictPosition, dev_particle_x0, hst_cm0[i], cm, dev_Apq_ptr, dev_n);
 
 		}
-		else if (body_type == FLUID)
-		{
-		}
+		
 
 		
 
