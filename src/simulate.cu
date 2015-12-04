@@ -20,7 +20,7 @@
 
 #define H_KERNAL_WIDTH (0.1f)
 
-#define NEIGHBOUR_R (2)
+#define NEIGHBOUR_R (1)
 
 #define RHO0 (1.0f)
 
@@ -288,7 +288,8 @@ void hitTestVoxelSolid(int num_voxel, float diameter, int particle_id, int voxel
 __device__
 inline float getH(float diameter)
 {
-	return ((float)NEIGHBOUR_R + 0.5f) * diameter;
+	//return ((float)NEIGHBOUR_R + 0.5f) * diameter;
+	return (float)NEIGHBOUR_R * diameter;
 }
 
 __device__
@@ -314,16 +315,13 @@ inline glm::vec3 gradientSmoothKernel(glm::vec3 vec_r, float h)
 	//r = || pi - pj||
 
 
-	//poly 6 kernel
-	//return r>h ? 0.0f : 315.0f / 64.0f / (float)PI / powf(h, 9.0f) * (
-	//	2 * r * (-3.0f * powf(h, 4.0f) + 6.0f * h * h * r - 3.0f * r * r));
 
 	float r = glm::length(vec_r);
 	//spiky kernel gradient
 
-	//return r>h ? glm::vec3(0.0f) : 15.0f / (float)PI / powf(h, 6.0f) * 
-	//	(-3.0f * h*h + 6.0f * h * r - 3.0f * r* r ) / r * vec_r;
-	return glm::normalize(vec_r);
+	return r>h ? glm::vec3(0.0f) : (-45.0f) / (float)PI / powf(h, 6.0f) * 
+		powf(h-r,2.0f) / r * vec_r;
+	//return glm::normalize(vec_r);
 
 
 	//tmp
@@ -459,8 +457,12 @@ Particle * particles, Voxel * grid, int * dev_n)
 
 		//WARNING: race conditions may exist
 		
-		//delta_positions[particle_id] += lambda_i * g;
-		//dev_n[particle_id] += g == glm::vec3(0.0f) ? 0 : 1;
+		//delta_positions[grid[voxel_id].particle_id[i]] += - lambda_i * g;
+		//dev_n[grid[voxel_id].particle_id[i]] += g == glm::vec3(0.0f) ? 0 : 1;
+
+		//glm::vec3 delta = -lambda_i * g / rho_0;
+		//atomicAdd(&delta_positions[grid[voxel_id].particle_id[i]].x, );
+		//atomicAdd(float* address, float val);
 	}
 
 	
@@ -578,12 +580,16 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 			//for testing
 			float ci = density / rho_0 - 1.0f;
 			float denominator = sum_gradient2 + glm::dot(sum_gradient, sum_gradient);
-			float lambda_i = -ci / denominator;
+			float lambda_i = - 1.0f * ci / denominator;
 
-			//printf("%f,%f,%f,\tdiameter=%f\n", density , rho_0 , denominator,diameter);
+			if (/*particles[particle_id].y < -1.0f &&*/ particle_id == 1000)
+			{
+				printf("%f,%f,%f,\tdiameter=%f\n", density, rho_0, denominator, diameter);
+			}
+				
+			
 
-
-			deltaPositions[particle_id] += 8.5f * min(0.0f, lambda_i) * sum_gradient / rho_0;
+			deltaPositions[particle_id] += min(0.0f, lambda_i) * sum_gradient / rho_0;
 			dev_n[particle_id] += 1;
 
 			//second loop used to calculate delta pos for neighbour particle
@@ -601,16 +607,10 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 				}
 			}
 			
-
-
-
-
-			
 			//deltaPositions[particle_id] += delta_pos / (n > 0 ? (float)n: 100.0f) * 1.0f * lambda;
 			//if (n > 0){
 			//	printf("%f,%f,%f\t%f,%f,%d\n", delta_pos.x, delta_pos.y, delta_pos.z, density, gradient, n);
 			//}
-
 
 
 			//naive way
@@ -621,6 +621,10 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 		}
 	}
 }
+
+
+
+
 
 
 __global__
@@ -748,6 +752,8 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 	handleCollision << <blockCountr, blockSizer >> >(num_particles, num_voxel, grid_length * 0.99f,
 		grid_resolution, dev_predictPosition, dev_deltaPosition, dev_particles, dev_grid, dev_particle_voxel_id, delta_t, dev_n);
 	checkCUDAError("ERROR: handle collision");
+
+	cudaDeviceSynchronize();
 
 	//---- Shape matching constraint --------
 	int base = 0;
