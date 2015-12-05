@@ -20,8 +20,8 @@
 
 #define H_KERNAL_WIDTH (0.1f)
 
-#define NEIGHBOUR_R (1)
-#define LAMBDA_EPSILON (1.0f)
+#define NEIGHBOUR_R (2)
+#define LAMBDA_EPSILON (0.0f)
 
 #define SPLEEFING_COFF (1000.0f)
 
@@ -310,7 +310,8 @@ void hitTestVoxelSolid(int num_voxel, float diameter, int particle_id, int voxel
 __device__
 inline float getH(float diameter)
 {
-	return ((float)NEIGHBOUR_R + 0.5f) * diameter;
+	//return ((float)NEIGHBOUR_R + 0.5f) * diameter;
+	return 2.5f * diameter;
 	//return (float)NEIGHBOUR_R * diameter;
 }
 
@@ -424,7 +425,10 @@ Particle * particles, Voxel * grid, int * dev_n)
 		//pi - pj
 		glm::vec3 d = predict_positions[particle_id] - predict_positions[grid[voxel_id].particle_id[i]];
 		
-		
+		if (glm::length(d) > getH(diameter))
+		{
+			continue;
+		}
 		//// If particles overlap
 		//if (glm::length(d) < diameter)
 		//{
@@ -443,7 +447,7 @@ Particle * particles, Voxel * grid, int * dev_n)
 
 		glm::vec3 g = gradientSmoothKernel(d, getH(diameter));
 		
-		//FACT: g and d has opposite direction
+		
 
 		gradient += g;
 		gradient2 += glm::dot(g,g);
@@ -492,12 +496,30 @@ Particle * particles, Voxel * grid, int * dev_n)
 		// Distance vector from particle i to particle j (on particle centers)
 		glm::vec3 d = predict_positions[particle_id] - predict_positions[grid[voxel_id].particle_id[i]];
 		
+		if (glm::length(d) > getH(diameter))
+		{
+			continue;
+		}
+
 		//gradent of W(pi-pj)
 		glm::vec3 g = gradientSmoothKernel(d, getH(diameter));
 
-		
-		delta_positions[particle_id] += 1.0f / getRHO0(diameter) 
+		//test
+		glm::vec3 delta = 1.0f / getRHO0(diameter)
 			* (lambda[particle_id] + lambda[grid[voxel_id].particle_id[i]]) * g;
+
+		//if (glm::length(g) > 0.01f && particle_id == 1000)
+		//{
+		//	printf("lambda_i=%f, lambda_j=%f\n", lambda[particle_id] , lambda[grid[voxel_id].particle_id[i]]);
+		//	printf("g.x=%f,g.y=%f,g.z=%f\n", g.x, g.y, g.z);
+		//	printf("d.x=%f,d.y=%f,d.z=%f\n\n", delta.x, delta.y,delta.z);
+		//}
+
+		delta_positions[particle_id] +=  delta;
+
+
+		//delta_positions[particle_id] += 1.0f / getRHO0(diameter) 
+		//	* (lambda[particle_id] + lambda[grid[voxel_id].particle_id[i]]) * g;
 
 		dev_n[particle_id] += 1;
 		
@@ -685,7 +707,7 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 			//for testing
 			float ci = density / rho_0 - 1.0f;
 			float denominator = sum_gradient2 + glm::dot(sum_gradient, sum_gradient) + LAMBDA_EPSILON;
-			float lambda_i = - ci / denominator;
+			float lambda_i = - 100.0f * ci / denominator;
 
 			lambda[particle_id] = min(0.0f,lambda_i);
 			//lambda_i = -lambda_i;

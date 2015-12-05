@@ -21,7 +21,7 @@
 #define GRAVITY (glm::vec3(0.0f,-9.8f,0.0f))
 #define FPS 60.0f
 #define FRAME_TIME 1.0f/FPS
-#define SIMU_STEP 20
+#define SIMU_STEP 10
 #define DELTA_T FRAME_TIME/SIMU_STEP
 
 //-------------------------------
@@ -353,7 +353,11 @@ void samplingTest_InitVAO()
 			particles_color.insert(particles_color.end(), rigid_body[i].m_color, rigid_body[i].m_color + 4);
 		}
 	}
-
+	//color test
+	for (int t = 4000; t < 5000; t++)
+	{
+		particles_color[t] = 1.0f;
+	}
 	g_vertex_buffer_data = (GLfloat*)malloc(all_particles.size() * sizeof(GLfloat));
 	std::copy(all_particles.begin(), all_particles.end(), g_vertex_buffer_data);
 
@@ -370,6 +374,7 @@ void samplingTest_InitVAO()
 	glBufferData(GL_ARRAY_BUFFER, all_particles.size()*sizeof(GLfloat), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+	
 	glGenBuffers(1, &vertexbuffer_color);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer_color);
 	glBufferData(GL_ARRAY_BUFFER, particles_color.size()*sizeof(GLfloat), g_vertex_buffer_color, GL_STATIC_DRAW);
