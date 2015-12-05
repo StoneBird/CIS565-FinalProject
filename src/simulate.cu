@@ -318,7 +318,7 @@ inline float getH(float diameter)
 __device__
 inline float getRHO0(float diameter)
 {
-	return 0.9f * 1.0f / powf(diameter / 0.99f, 3.0f);
+	return 0.7f * 1.0f / powf(diameter / 0.99f, 3.0f);
 }
 
 __device__
@@ -707,7 +707,7 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 			//for testing
 			float ci = density / rho_0 - 1.0f;
 			float denominator = sum_gradient2 + glm::dot(sum_gradient, sum_gradient) + LAMBDA_EPSILON;
-			float lambda_i = - 100.0f * ci / denominator;
+			float lambda_i = - 20.0f * ci / denominator;
 
 			lambda[particle_id] = min(0.0f,lambda_i);
 			//lambda_i = -lambda_i;

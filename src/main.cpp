@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
 		c = 1;
 		rigid_body[c].setPhase(c);
 		//rigid_body[c].setScale(glm::vec3(2.5f, 2.5f, 2.5f));
-		rigid_body[c].setTranslate(glm::vec3(0.0f, -1.0f, 0.0f));
+		rigid_body[c].setTranslate(glm::vec3(0.0f, -2.0f, 0.0f));
 		//rigid_body[c].setRotation(glm::rotate(5.0f*(float)PI / 180.0f, glm::vec3(0.0f, 0.0f, 1.0f)));
 		rigid_body[c].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
 		//rigid_body[c].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
