@@ -756,7 +756,7 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 				continue;
 			}
 
-			thrust::device_vector<glm::mat3> dev_Apq(num_particles);
+			thrust::device_vector<glm::mat3> dev_Apq(size);
 			glm::mat3 * dev_Apq_ptr = thrust::raw_pointer_cast(&dev_Apq[0]);
 
 			//calculate current cm
