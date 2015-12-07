@@ -16,7 +16,7 @@
 #define GRID_LENGTH_DEFAULT (0.273438f)
 
 //#define OBJ_ARR_SIZE 9
-#define OBJ_ARR_SIZE 3
+#define OBJ_ARR_SIZE 6
 
 #define GRAVITY (glm::vec3(0.0f,-9.8f,0.0f))
 #define FPS 60.0f
@@ -80,18 +80,18 @@ int main(int argc, char **argv) {
 		uniform_grid_length = rigid_body[c].getGridLength();
 		std::cout << uniform_grid_length;
 
-		//for (int i = 1; i <= OBJ_ARR_SIZE - 2; i++)
-		//{
-		//	c = i;
-		//	rigid_body[c] = rigid_body[0];
-		//	rigid_body[c].setPhase(c);
-		//	rigid_body[c].setTranslate(glm::vec3(4.0f - (float)(c % 4) * 2.5f, 1.0f + (float)(c / 4)* 3.0f, 4.0f - (float)(c % 4) * 2.5f));
-		//	rigid_body[c].setRotation(glm::rotate(5.0f* (float)c*(float)PI / 180.0f, glm::vec3(0.0f, 0.0f, 1.0f)));
-		//	rigid_body[c].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
-		//	rigid_body[c].setMassScale(1.0f);
-		//	rigid_body[c].setColor(COLOR_PRESET[(i - 1) % NUM_COLOR_PRESET]);
-		//	rigid_body[c].initParticles(uniform_grid_length);
-		//}
+		for (int i = 1; i <= OBJ_ARR_SIZE - 3; i++)
+		{
+			c = i;
+			rigid_body[c] = rigid_body[0];
+			rigid_body[c].setPhase(c);
+			rigid_body[c].setTranslate(glm::vec3(4.0f - (float)(c % 4) * 2.5f, 1.0f + (float)(c / 4)* 3.0f, 4.0f - (float)(c % 4) * 2.5f));
+			rigid_body[c].setRotation(glm::rotate(5.0f* (float)c*(float)PI / 180.0f, glm::vec3(0.0f, 0.0f, 1.0f)));
+			rigid_body[c].setInitVelocity(glm::vec3(1.0f, 1.0f, 0.0f));
+			rigid_body[c].setMassScale(1.0f);
+			rigid_body[c].setColor(COLOR_PRESET[(i - 1) % NUM_COLOR_PRESET]);
+			rigid_body[c].initParticles(uniform_grid_length);
+		}
 
 
 		////water test
@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
 
 
 		//water fill
-		c = 1;
+		c = OBJ_ARR_SIZE - 2;
 		rigid_body[c].setPhase(c);
 		//rigid_body[c].setScale(glm::vec3(2.5f, 2.5f, 2.5f));
 		rigid_body[c].setTranslate(glm::vec3(0.0f, -2.0f, 0.0f));
@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
 		//rigid_body[c].setInitVelocity(glm::vec3(0.0f, 9.8f, 0.0f));
 		rigid_body[c].setMassScale(1.0f);
 		rigid_body[c].setType(FLUID);
-		rigid_body[c].setColor(glm::vec4(0.0f, 0.5f, 1.0f, 1.0f));
+		rigid_body[c].setColor(glm::vec4(0.0f, 0.5f, 1.0f, 0.3f));
 		rigid_body[c].initObj("../objs/fill.obj");
 		rigid_body[c].initParticles(uniform_grid_length);
 
@@ -353,11 +353,11 @@ void samplingTest_InitVAO()
 			particles_color.insert(particles_color.end(), rigid_body[i].m_color, rigid_body[i].m_color + 4);
 		}
 	}
-	//color test
-	for (int t = 4000; t < 5000; t++)
-	{
-		particles_color[t] = 1.0f;
-	}
+	////color test
+	//for (int t = 4000; t < 5000; t++)
+	//{
+	//	particles_color[t] = 1.0f;
+	//}
 	g_vertex_buffer_data = (GLfloat*)malloc(all_particles.size() * sizeof(GLfloat));
 	std::copy(all_particles.begin(), all_particles.end(), g_vertex_buffer_data);
 

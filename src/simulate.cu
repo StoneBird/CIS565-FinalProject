@@ -340,7 +340,7 @@ const int voxel_id, const glm::vec3 * predict_positions, glm::vec3 * delta_posit
 		}
 		// Momentum weighing based on particle mass
 		// Not true momentum, but approximation
-		delta = delta * (-particleInvmass / (particleInvmass + particles[grid[voxel_id].particle_id[i]].invmass));
+		delta = particles[particle_id].type == FLUID ? -delta : delta * (-particleInvmass / (particleInvmass + particles[grid[voxel_id].particle_id[i]].invmass));
 		n++;
 		// Move particle i along the vector so that i and j are in the post-collision states
 		delta_pos += glm::normalize(d) * delta;
@@ -484,7 +484,7 @@ Particle * particles, Voxel * grid, int * dev_n)
 		dev_n[particle_id] += 1;
 
 		//gradent of W(pi-pj)
-		delta_positions[particle_id] += delta_w * gradientSmoothKernel(d, H);
+		delta_positions[particle_id] += delta_w * (gradientSmoothKernel(d, H));
 	}
 
 	
