@@ -712,8 +712,7 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 	//clean
 	int num_voxel = grid_resolution.x * grid_resolution.y * grid_resolution.z;
 	cudaMemset(dev_grid, 0, num_voxel * sizeof(Voxel));
-	// FIXME below memset breaks updateVoxelIndex; not sure why
-	//cudaMemset(dev_particle_voxel_id, 0, num_voxel * sizeof(Voxel));
+	cudaMemset(dev_particle_voxel_id, 0, num_particles * sizeof(int));
 
 	//update
 	updateVoxelIndex << <blockCountr, blockSizer >> >(num_particles, grid_resolution, grid_min_x, grid_length, dev_predictPosition, dev_grid, dev_particle_voxel_id);
