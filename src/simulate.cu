@@ -678,14 +678,15 @@ void updatePositionFloatArray(int N, glm::vec3 * predictions, Particle * particl
 
 		// Particle sleeping
 		// Truncate super small values so avoid if-statement
-		if (particles[threadId].type == SOLID)
-		{
-			particles[threadId].x = particles[threadId].x + glm::trunc(delta_d*SPLEEFING_COFF) / SPLEEFING_COFF;
-		}
-		else
-		{
-			particles[threadId].x = particles[threadId].x + delta_d;
-		}
+		particles[threadId].x = particles[threadId].x + glm::trunc(delta_d*SPLEEFING_COFF) / SPLEEFING_COFF;
+		//if (particles[threadId].type == SOLID)
+		//{
+		//	particles[threadId].x = particles[threadId].x + glm::trunc(delta_d*SPLEEFING_COFF) / SPLEEFING_COFF;
+		//}
+		//else
+		//{
+		//	particles[threadId].x = particles[threadId].x + delta_d;
+		//}
 
 		// Update positions
 		positions[3 * threadId] = particles[threadId].x.x;
