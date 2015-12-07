@@ -82,4 +82,13 @@ Preprocessing → Simulation → Vertex Shader (→ Geometry Shader / Meshing �
 	
 	![](img/milestone3-3.png)
 	
-	
+#### Draft
+* Preprocessing efficiency
+* Numerical stability (polar decomp, matrix square root)
+	* SVD - no; Jacobi - no
+	* Denmann - yes, also converges fast
+* Optimization
+	* Change flow to avoid repetitive computations within kernel (extract to pre-process)
+	* Optimize occupacy
+	* Optimize memory access
+		* Remove repetitive memory access to the same location within loops; reduce memory dependency

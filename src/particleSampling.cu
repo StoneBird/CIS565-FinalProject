@@ -205,7 +205,7 @@ void transformParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, i
 }
 
 void sampleParticles(std::vector<Particle> &hst_p, std::vector<float> &hst_pos, const glm::mat4 mat, const glm::vec3 body_init_velocity, const float body_mass_scale, const int body_phase, const ParticleType body_type){
-	const int blockSideLength = 8;
+	const int blockSideLength = 16;
 	const dim3 blockSize(blockSideLength, blockSideLength);
 	dim3 blocksPerGrid(
 		(resolution.x + blockSize.x - 1) / blockSize.x,

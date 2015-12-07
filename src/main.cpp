@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
 		c = 0;
 		rigid_body[c].setPhase(c);
 		//rigid_body[c].setScale(glm::vec3(2.5f, 2.5f, 2.5f));
-		rigid_body[c].setTranslate(glm::vec3(-7.0f, 8.0f, 0.0f));
+		rigid_body[c].setTranslate(glm::vec3(-4.0f, 8.0f, 0.0f));
 		//rigid_body[c].setTranslate(glm::vec3(1.0f, 5.0f, 0.0f));
 		//rigid_body[c].setRotation(glm::rotate(5.0f*(float)PI / 180.0f, glm::vec3(0.0f, 0.0f, 1.0f)));
 		rigid_body[c].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
 			rigid_body[c].setInitVelocity(glm::vec3(0.0f, 0.0f, 0.0f));
 			rigid_body[c].setMassScale(0.0f);
 			rigid_body[c].setType(SOLID);
-			rigid_body[c].setColor(glm::vec4(1.0f, 0.5f, 0.0f, 0.1f));
+			rigid_body[c].setColor(glm::vec4(1.0f, 0.5f, 0.0f, 0.3f));
 			rigid_body[c].initObj(argv[2]);
 			rigid_body[c].initParticles(uniform_grid_length);
 		}

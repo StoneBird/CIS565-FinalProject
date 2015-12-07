@@ -16,11 +16,11 @@
 #include <vector>
 
 #include "fluid.h"
-//#include <util/dsyevj3.c>
 
 #define H_KERNAL_WIDTH (0.1f)
 
 #define NEIGHBOUR_R (2)
+#define HITTEST_R (1)
 #define LAMBDA_EPSILON (0.0f)
 
 #define SPLEEFING_COFF (1000.0f)
@@ -37,6 +37,10 @@ static int * dev_n;
 
 static float * dev_positions;
 
+static int loopSize_fluid = (NEIGHBOUR_R * 2 + 1)*(NEIGHBOUR_R * 2 + 1)*(NEIGHBOUR_R * 2 + 1);
+static int loopSize_hit = (HITTEST_R * 2 + 1)*(HITTEST_R * 2 + 1)*(HITTEST_R * 2 + 1);
+static int * dev_loopIdx_fluid;
+static int * dev_loopIdx_hit;
 
 static float grid_length;
 static glm::ivec3 grid_resolution;
@@ -156,6 +160,39 @@ void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 	checkCUDAError("ERROR: assemble particle array");
 }
 
+__global__
+void initTestLoopIdx(int * fluidLoop, int * hitLoop, const glm::ivec3 resolution){
+	int x, y, z, idSum2, idSum3, yTimesZ = resolution.y * resolution.z, j = 0;
+	for (x = -NEIGHBOUR_R; x <= NEIGHBOUR_R; x++)
+	{
+		idSum2 = x * yTimesZ;
+		for (y = -NEIGHBOUR_R; y <= NEIGHBOUR_R; y++)
+		{
+			idSum3 = idSum2 + y * resolution.z;
+			for (z = -NEIGHBOUR_R; z <= NEIGHBOUR_R; z++)
+			{
+				fluidLoop[j] = idSum3 + z;
+				j++;
+			}
+		}
+	}
+
+	j = 0;
+	for (x = -HITTEST_R; x <= HITTEST_R; x++)
+	{
+		idSum2 = x * yTimesZ;
+		for (y = -HITTEST_R; y <= HITTEST_R; y++)
+		{
+			idSum3 = idSum2 + y * resolution.z;
+			for (z = -HITTEST_R; z <= HITTEST_R; z++)
+			{
+				hitLoop[j] = idSum3 + z;
+				j++;
+			}
+		}
+	}
+}
+
 void initUniformGrid(glm::vec3 bmin, glm::vec3 bmax, float diameter)
 {
 	//init size
@@ -171,7 +208,12 @@ void initUniformGrid(glm::vec3 bmin, glm::vec3 bmax, float diameter)
 	cudaMalloc(&dev_grid, grid_size * sizeof(Voxel));
 	cudaMemset(dev_grid, 0, grid_size * sizeof(Voxel));
 
-	cudaMalloc(&dev_particle_voxel_id, num_particles);
+	cudaMalloc(&dev_particle_voxel_id, num_particles *sizeof(int));
+
+	cudaMalloc(&dev_loopIdx_fluid, loopSize_fluid *sizeof(int));
+	cudaMalloc(&dev_loopIdx_hit, loopSize_hit *sizeof(int));
+
+	initTestLoopIdx << <1, 1 >> >(dev_loopIdx_fluid, dev_loopIdx_hit, grid_resolution);
 }
 
 void endSimulation()
@@ -193,6 +235,9 @@ void endSimulation()
 	cudaFree(dev_particle_x0);
 
 	cudaFree(dev_lambda);
+
+	cudaFree(dev_loopIdx_fluid);
+	cudaFree(dev_loopIdx_hit);
 	//lock
 	//cudaFree(dev_mutex);
 
@@ -264,10 +309,10 @@ void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, c
 }
 
 
-
 __device__
-void hitTestVoxelSolid(int num_voxel, float diameter, int particle_id, int voxel_id, glm::vec3 * predict_positions, glm::vec3 * delta_positions,
-	Particle * particles, Voxel * grid, int * dev_n)
+void hitTestVoxelSolid(const int num_voxel, const float diameter, const int particle_id, const int particlePhase, const float particleInvmass, const glm::vec3 particlePos,
+const int voxel_id, const glm::vec3 * predict_positions, glm::vec3 * delta_positions,
+	const Particle * particles, const Voxel * grid, int * dev_n)
 {
 	if (voxel_id < 0 || voxel_id >= num_voxel)
 	{
@@ -275,34 +320,35 @@ void hitTestVoxelSolid(int num_voxel, float diameter, int particle_id, int voxel
 		return;
 	}
 	// Delta X for collision
-	glm::vec3 delta_pos(0.0);
+	glm::vec3 delta_pos(0.0), d;
 	// Average count
 	int n = 0;
+	float delta;
 	for (int i = 0; i < grid[voxel_id].num; i++)
 	{
-		if (particles[grid[voxel_id].particle_id[i]].phase != particles[particle_id].phase)
-			//&& particles[grid[voxel_id].particle_id[i]].type == SOLID)
+		if (particles[grid[voxel_id].particle_id[i]].phase == particlePhase)
 		{
-			// Distance vector from particle i to particle j (on particle centers)
-			glm::vec3 d = predict_positions[grid[voxel_id].particle_id[i]] - predict_positions[particle_id];
-			// If particles overlap
-			if (glm::length(d) <= diameter)
-			{
-				n++;
-				// Momentum weighing based on particle mass
-				// Not true momentum, but approximation
-				float momentWeight = -particles[particle_id].invmass / (particles[particle_id].invmass + particles[grid[voxel_id].particle_id[i]].invmass);
-				// Move particle i along the vector so that i and j are in the post-collision states
-				delta_pos += momentWeight * glm::normalize(d) * (diameter - glm::length(d));
-			}
+			continue;
 		}
-			
+		// Distance vector from particle i to particle j (on particle centers)
+		d = predict_positions[grid[voxel_id].particle_id[i]] - particlePos;
+		delta = diameter - glm::length(d);
+		// If particles overlap
+		if (0 > delta)
+		{
+			continue;
+		}
+		// Momentum weighing based on particle mass
+		// Not true momentum, but approximation
+		delta = delta * (-particleInvmass / (particleInvmass + particles[grid[voxel_id].particle_id[i]].invmass));
+		n++;
+		// Move particle i along the vector so that i and j are in the post-collision states
+		delta_pos += glm::normalize(d) * delta;
 	}
 	// Apply average delta X position (treat as results of constraint solver)
 	delta_positions[particle_id] += delta_pos;
 	dev_n[particle_id] += n;
 }
-
 
 
 
@@ -348,8 +394,7 @@ inline glm::vec3 gradientSmoothKernel(glm::vec3 vec_r, float h)
 	float r = glm::length(vec_r);
 	//spiky kernel gradient
 
-	return r>h ? glm::vec3(0.0f) : (-45.0f) / (float)PI / powf(h, 6.0f) * 
-		powf(h-r,2.0f) / r * vec_r;
+	return r>h ? glm::vec3(0.0f) : (-45.0f) / (float)PI / powf(h, 6.0f) * powf(h-r,2.0f) * glm::normalize(vec_r);
 	//return glm::normalize(vec_r);
 
 
@@ -357,49 +402,9 @@ inline glm::vec3 gradientSmoothKernel(glm::vec3 vec_r, float h)
 	//return 1.0f;
 }
 
-
 __device__
-void hitTestVoxelFluid_SolidCollision(int num_voxel, float diameter, int particle_id, int voxel_id, glm::vec3 * predict_positions, glm::vec3 * delta_positions,
-Particle * particles, Voxel * grid, int * dev_n)
-{
-	if (voxel_id < 0 || voxel_id >= num_voxel)
-	{
-		//voxel_id is invalid
-		return;
-	}
-	// Delta X for collision
-	glm::vec3 delta_pos(0.0);
-	// Average count
-	int n = 0;
-	for (int i = 0; i < grid[voxel_id].num; i++)
-	{
-		if (grid[voxel_id].particle_id[i] == particle_id)
-		{
-			continue;
-		}
-		// Distance vector from particle i to particle j (on particle centers)
-		glm::vec3 d = predict_positions[grid[voxel_id].particle_id[i]] - predict_positions[particle_id];
-		// If particles overlap
-		if (glm::length(d) <= diameter)
-		{
-			n++;
-			// Momentum weighing based on particle mass
-			// Not true momentum, but approximation
-			float momentWeight = -particles[particle_id].invmass / (particles[particle_id].invmass + particles[grid[voxel_id].particle_id[i]].invmass);
-			// Move particle i along the vector so that i and j are in the post-collision states
-			delta_pos += momentWeight * glm::normalize(d) * (diameter - glm::length(d));
-						
-		}
-
-	}
-	// Apply average delta X position (treat as results of constraint solver)
-	delta_positions[particle_id] += delta_pos;
-	dev_n[particle_id] += n;
-}
-
-__device__
-float fluidInfoSum(glm::vec3 & gradient, float & gradient2,int & n, 
-int num_voxel, float diameter, int particle_id, int voxel_id, glm::vec3 * predict_positions, glm::vec3 * delta_positions,
+float fluidInfoSum(glm::vec3 & gradient, float & gradient2,
+int num_voxel, float diameter, float H, int particle_id, glm::vec3 particlePos, int voxel_id, glm::vec3 * predict_positions, glm::vec3 * delta_positions,
 Particle * particles, Voxel * grid, int * dev_n)
 {
 	if (voxel_id < 0 || voxel_id >= num_voxel)
@@ -408,55 +413,31 @@ Particle * particles, Voxel * grid, int * dev_n)
 		return;
 	}
 
-	
+	glm::vec3 g;
 	float density = 0.0f;	//for particles in this voxel
+	float distance;
 	for (int i = 0; i < grid[voxel_id].num; i++)
 	{
 		if (grid[voxel_id].particle_id[i] == particle_id)
 		{
 			continue;
 		}
-
-		//if (particles[grid[voxel_id].particle_id[i]].type != FLUID)
-		//{
-		//	continue;
-		//}
 
 		//pi - pj
-		glm::vec3 d = predict_positions[particle_id] - predict_positions[grid[voxel_id].particle_id[i]];
+		g = particlePos - predict_positions[grid[voxel_id].particle_id[i]];
+		distance = glm::length(g);
 		
-		if (glm::length(d) > getH(diameter))
+		if (distance > H)
 		{
 			continue;
 		}
-		//// If particles overlap
-		//if (glm::length(d) < diameter)
-		//{
-		//	float momentWeight = -particles[particle_id].invmass / (particles[particle_id].invmass + particles[grid[voxel_id].particle_id[i]].invmass);
-		//	// Move particle i along the vector so that i and j are in the post-collision states
-		//	delta_pos += momentWeight * glm::normalize(d) * (diameter - glm::length(d));
-		//	n++;
-		//}
-		
 
-		n++;
-		//density += (particles[grid[voxel_id].particle_id[i]].type == FLUID ? 1.0f : (particles[particle_id].invmass < FLT_EPSILON ? 10.0f : 1.0f / particles[particle_id].invmass))
-		//	* SmoothKernel(predict_positions[particle_id] - predict_positions[grid[voxel_id].particle_id[i]], H_KERNAL_WIDTH);
+		density += SmoothKernel(distance, H);
 
-		density += SmoothKernel(glm::length(d), getH(diameter));
-
-		glm::vec3 g = gradientSmoothKernel(d, getH(diameter));
-		
-		
+		g = gradientSmoothKernel(g, H);
 
 		gradient += g;
 		gradient2 += glm::dot(g,g);
-
-		//tmp
-		//delta_pos += -0.5f * glm::normalize(d) * (diameter - glm::length(d));
-		//delta_pos += - 0.0001f * glm::normalize(d) / glm::dot(d,d);
-
-		
 
 	}
 	//correct version should update based on gradient matrix of Kernal 
@@ -469,7 +450,7 @@ Particle * particles, Voxel * grid, int * dev_n)
 
 __device__
 void fluidNeighbourEnforce(float* lambda, //int * mutex,
-int num_voxel, float diameter, int particle_id, int voxel_id, glm::vec3 * predict_positions, glm::vec3 * delta_positions,
+int num_voxel, float diameter, float H, float oneOverRho, int particle_id, glm::vec3 particlePos, float particleLambda, int voxel_id, glm::vec3 * predict_positions, glm::vec3 * delta_positions,
 Particle * particles, Voxel * grid, int * dev_n)
 {
 	if (voxel_id < 0 || voxel_id >= num_voxel)
@@ -477,106 +458,33 @@ Particle * particles, Voxel * grid, int * dev_n)
 		//voxel_id is invalid
 		return;
 	}
+	int gridSize = grid[voxel_id].num, gridPartId;
+	glm::vec3 d;
+	float delta_w;
 
-
-	//glm::vec3 delta_pos(0.0);
-
-	for (int i = 0; i < grid[voxel_id].num; i++)
+	for (int i = 0; i < gridSize; i++)
 	{
-		if (grid[voxel_id].particle_id[i] == particle_id)
-		{
-			continue;
-		}
-
-		//if (particles[grid[voxel_id].particle_id[i]].type != FLUID)
-		//{
-		//	continue;
-		//}
-
-		// Distance vector from particle i to particle j (on particle centers)
-		glm::vec3 d = predict_positions[particle_id] - predict_positions[grid[voxel_id].particle_id[i]];
+		gridPartId = grid[voxel_id].particle_id[i];
 		
-		if (glm::length(d) > getH(diameter))
+		if (gridPartId == particle_id)
+		{
+			continue;
+		}
+		
+		// Distance vector from particle i to particle j (on particle centers)
+		d = particlePos - predict_positions[gridPartId];
+		
+		if (glm::length(d) > H)
 		{
 			continue;
 		}
 
-		//gradent of W(pi-pj)
-		glm::vec3 g = gradientSmoothKernel(d, getH(diameter));
-
-		//test
-		glm::vec3 delta = 1.0f / getRHO0(diameter)
-			* (lambda[particle_id] + lambda[grid[voxel_id].particle_id[i]]) * g;
-
-		//if (glm::length(g) > 0.01f && particle_id == 1000)
-		//{
-		//	printf("lambda_i=%f, lambda_j=%f\n", lambda[particle_id] , lambda[grid[voxel_id].particle_id[i]]);
-		//	printf("g.x=%f,g.y=%f,g.z=%f\n", g.x, g.y, g.z);
-		//	printf("d.x=%f,d.y=%f,d.z=%f\n\n", delta.x, delta.y,delta.z);
-		//}
-
-		delta_positions[particle_id] +=  delta;
-
-
-		//delta_positions[particle_id] += 1.0f / getRHO0(diameter) 
-		//	* (lambda[particle_id] + lambda[grid[voxel_id].particle_id[i]]) * g;
+		delta_w = oneOverRho * (particleLambda + lambda[gridPartId]);
 
 		dev_n[particle_id] += 1;
-		
-		//WARNING: race conditions may exist
-		
-		//lock
-		
-		//int old = mutex[grid[voxel_id].particle_id[i]];
-		//int old;
-		//do
-		//{
-		//	old = atomicCAS(&mutex[grid[voxel_id].particle_id[i]], 0, 1);
-		//} while (0 != old);
 
-
-		//while (atomicCAS(&mutex[grid[voxel_id].particle_id[i]], 0, 1) != 0){}
-
-		//g *= min(0.0f, lambda_i);
-
-		//if (/*particles[particle_id].y < -1.0f &&*/ particle_id == 1000)
-		//{
-		//	printf("lambda=%f,g.x=%f,g.y=%f,g.z=%f\n", lambda_i, g.x, g.y,g.z);
-		//}
-
-		//delta_positions[grid[voxel_id].particle_id[i]] += g;
-		//delta_positions[grid[voxel_id].particle_id[i]] += - min(0.0f,lambda_i) * g;
-		//dev_n[grid[voxel_id].particle_id[i]] += 1;
-
-
-		//unlock
-		//atomicExch(&mutex[grid[voxel_id].particle_id[i]], 0);
-		//mutex[grid[voxel_id].particle_id[i]] = 0;
-		//atomicCAS(&mutex[grid[voxel_id].particle_id[i]], 1, 0);
-
-
-
-		//if (/*particles[particle_id].y < -1.0f &&*/ particle_id == 1000)
-		//{
-		//	printf("%f,%f,%f\n", lambda_i, d.x, g.x);
-		//}
-		
-
-		//int assume = dev_n[grid[voxel_id].particle_id[i]];
-
-		//do
-		//{
-		//	assume = atomicAdd(&dev_n[grid[voxel_id].particle_id[i]], 1);
-		//} while (assume == dev_n[grid[voxel_id].particle_id[i]]);
-
-		//delta_positions[grid[voxel_id].particle_id[i]] +=  min(0.0f,lambda_i) * g;
-		
-
-		
-
-		//glm::vec3 delta = -lambda_i * g / rho_0;
-		//atomicAdd(&delta_positions[grid[voxel_id].particle_id[i]].x, );
-		//atomicAdd(float* address, float val);
+		//gradent of W(pi-pj)
+		delta_positions[particle_id] += delta_w * gradientSmoothKernel(d, H);
 	}
 
 	
@@ -596,7 +504,7 @@ Particle * particles, Voxel * grid, int * dev_n)
 
 //Handle Constraints
 __global__
-void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution, float* lambda,//int * mutex,
+void handleCollision(int N, int num_voxel, float diameter, int * fluidLoop, int fluidLoopSize, int * hitLoop, int hitLoopSize, float* lambda,//int * mutex,
 	 glm::vec3 * predictPositions, glm::vec3 * deltaPositions, Particle * particles,Voxel * grid, int * ids, float delta_t, int * dev_n)
 {
 
@@ -604,206 +512,87 @@ void handleCollision(int N, int num_voxel, float diameter, glm::ivec3 resolution
 
 	if (particle_id < N)
 	{
-		int voxel_id = ids[particle_id];
-
 		// Collision detection & reaction; simplified SDF constraint
 		// hitTest particles in neighbour voxel
 
+		// float particleInvmass
+		float density = particles[particle_id].invmass;
+		int particlePhase = particles[particle_id].phase;
+		int i, idSum = ids[particle_id];
+		glm::vec3 particlePos = predictPositions[particle_id];
 
-		if (particles[particle_id].type == SOLID)
+		for (i = 0; i < hitLoopSize; i++)
 		{
-			for (int x = -1; x <= 1; x++)
-			{
-				for (int y = -1; y <= 1; y++)
-				{
-					for (int z = -1; z <= 1; z++)
-					{
-						hitTestVoxelSolid(num_voxel, diameter, particle_id,
-							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
-							predictPositions, deltaPositions, particles, grid, dev_n);
-					}
-				}
-			}
+			hitTestVoxelSolid(num_voxel, diameter, particle_id, particlePhase, density, particlePos,
+				idSum + hitLoop[i],
+				predictPositions, deltaPositions, particles, grid, dev_n);
 		}
-
-
-	}
-
-
-	__syncthreads();
-
-
-	if (particle_id < N)
-	{
-		int voxel_id = ids[particle_id];
-
-
+		
 		if (particles[particle_id].type == FLUID)
 		{
-			//C_i(x) = density/density0 - 1.0
-			//gradient_C_i(x)
-
-			//delta_X = - C_i / sum( gradient(C_i)^2 )
-
-			float density = 0.0f;
+			density = 0.0f;
+			float H = getH(diameter);
 			glm::vec3 sum_gradient(0.0f);
 			float sum_gradient2 = 0.0f;
-			glm::vec3 delta_pos(0.0f);
-			int n = 0;
-
-
-			//solid collision (including self)
-			for (int x = -1; x <= 1; x++)
-			{
-				for (int y = -1; y <= 1; y++)
-				{
-					for (int z = -1; z <= 1; z++)
-					{
-						//contains self collision
-						/*hitTestVoxelFluid_SolidCollision(num_voxel, diameter, particle_id,
-							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
-							predictPositions, deltaPositions, particles, grid, dev_n);*/
-
-						//no self collision
-						hitTestVoxelSolid(num_voxel, diameter, particle_id,
-							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
-							predictPositions, deltaPositions, particles, grid, dev_n);
-					}
-				}
-			}
-
 
 			//first loop used to get the sum of density rho_i, sum of gradient
 			//fluid density constraint
-			//for (int x = -NEIGHBOUR_R; x <= NEIGHBOUR_R; x++)
-			//{
-			//	for (int y = -NEIGHBOUR_R; y <= NEIGHBOUR_R; y++)
-			//	{
-			//		for (int z = -NEIGHBOUR_R; z <= NEIGHBOUR_R; z++)
-			for (int x = -NEIGHBOUR_R; x <= NEIGHBOUR_R; x++)
+			
+			for (i = 0; i < fluidLoopSize; i++)
 			{
-				for (int y = -NEIGHBOUR_R; y <= NEIGHBOUR_R; y++)
-				{
-					for (int z = -NEIGHBOUR_R; z <= NEIGHBOUR_R; z++)
-					{
-						density += fluidInfoSum(sum_gradient, sum_gradient2, n,
-							num_voxel, diameter, particle_id,
-							voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
-							predictPositions, deltaPositions, particles, grid, dev_n);
-					}
-				}
+				density += fluidInfoSum(sum_gradient, sum_gradient2,
+					num_voxel, diameter, H, particle_id, particlePos,
+					idSum + fluidLoop[i],
+					predictPositions, deltaPositions, particles, grid, dev_n);
 			}
-
-
-			float rho_0 = getRHO0(diameter);
 
 			// when density / rho_0 -1.0f > 0 , move
 			// i.e. when lambda < 0, move
-			
-			//float lambda_i =  -(density / rho_0 - 1.0f) / (sum_gradient2 + glm::dot(sum_gradient, sum_gradient));
 
-			
-			
-			//for testing
-			float ci = density / rho_0 - 1.0f;
-			float denominator = sum_gradient2 + glm::dot(sum_gradient, sum_gradient) + LAMBDA_EPSILON;
-			float lambda_i = - 20.0f * ci / denominator;
+			// float ci
+			H = density / getRHO0(diameter) - 1.0f;
+			// float denominator
+			density = sum_gradient2 + glm::dot(sum_gradient, sum_gradient) + LAMBDA_EPSILON;
+			// float lambda_i
+			H = -20.0f * H / density;
 
-			lambda[particle_id] = min(0.0f,lambda_i);
-			//lambda_i = -lambda_i;
-			//if (/*particles[particle_id].y < -1.0f &&*/ particle_id == 955)
-			//{
-			//	printf("%f,%f,%f,lambda=%f\n", density, rho_0, denominator, lambda_i);
-			//}
-				
-			
-
-			//sum_gradient *= min(0.0f, lambda_i) / rho_0;
-
-			//if (/*particles[particle_id].y < -1.0f &&*/ particle_id == 1000)
-			//{
-			//	printf("self -- lambda=%f,g.x=%f,g.y=%f,g.z=%f\n", lambda_i, sum_gradient.x, sum_gradient.y, sum_gradient.z);
-			//}
-			//deltaPositions[particle_id] += sum_gradient;
-			
-
-			//deltaPositions[particle_id] += min(0.0f, lambda_i) * sum_gradient / rho_0;
-			//dev_n[particle_id] += 1;
-
-
-
-			////second loop used to calculate delta pos for neighbour particle
-			//for (int x = -NEIGHBOUR_R; x <= NEIGHBOUR_R; x++)
-			//{
-			//	for (int y = -NEIGHBOUR_R; y <= NEIGHBOUR_R; y++)
-			//	{
-			//		for (int z = -NEIGHBOUR_R; z <= NEIGHBOUR_R; z++)
-			//		{
-			//			fluidNeighbourEnforce(lambda_i,rho_0, lambda,//mutex,
-			//				num_voxel, diameter, particle_id,
-			//				voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
-			//				predictPositions, deltaPositions, particles, grid, dev_n);
-			//		}
-			//	}
-			//}
-			
-
-
-			//deltaPositions[particle_id] += delta_pos / (n > 0 ? (float)n: 100.0f) * 1.0f * lambda;
-			//if (n > 0){
-			//	printf("%f,%f,%f\t%f,%f,%d\n", delta_pos.x, delta_pos.y, delta_pos.z, density, gradient, n);
-			//}
-
-
-			//naive way
-			//n = min(n, 1);
-			//deltaPositions[particle_id] += max( -1.0f * diameter, min(0.0f, density - 6.0f / (diameter*diameter)) ) * delta_pos / (float)n;
-			//dev_n[particle_id] += 1;
+			lambda[particle_id] = min(0.0f, H);
 
 		}
 	}
 }
 
-
-
 //fluid apply delta
 __global__
-void FluidApplyLambdaDelta(int N, int num_voxel, float diameter, glm::ivec3 resolution, float* lambda,//int * mutex,
+void FluidApplyLambdaDelta(int N, int num_voxel, float diameter, int * fluidLoop, int loopSize, float* lambda,//int * mutex,
 glm::vec3 * predictPositions, glm::vec3 * deltaPositions, Particle * particles, Voxel * grid, int * ids, float delta_t, int * dev_n)
 {
 	int particle_id = blockDim.x * blockIdx.x + threadIdx.x;
 
 	if (particle_id < N)
 	{
-		int voxel_id = ids[particle_id];
-
 		// Collision detection & reaction; simplified SDF constraint
 		// hitTest particles in neighbour voxel
 
-
 		if (particles[particle_id].type == FLUID)
 		{
-			for (int x = -NEIGHBOUR_R; x <= NEIGHBOUR_R; x++)
+			int idSum = ids[particle_id];
+			glm::vec3 particlePos = predictPositions[particle_id];
+			float particleLambda = lambda[particle_id];
+
+			float H = getH(diameter);
+			float oneOverRho = 1.0f / getRHO0(diameter);
+
+			for (int i = 0; i < loopSize; i++)
 			{
-				for (int y = -NEIGHBOUR_R; y <= NEIGHBOUR_R; y++)
-				{
-					for (int z = -NEIGHBOUR_R; z <= NEIGHBOUR_R; z++)
-					{
-						fluidNeighbourEnforce(lambda,//mutex,
-											num_voxel, diameter, particle_id,
-											voxel_id + z * 1 + y * resolution.z + x * resolution.y * resolution.z,
-											predictPositions, deltaPositions, particles, grid, dev_n);
-					}
-				}
+				fluidNeighbourEnforce(lambda,//mutex,
+					num_voxel, diameter, H, oneOverRho, particle_id, particlePos, particleLambda,
+					idSum + fluidLoop[i],
+					predictPositions, deltaPositions, particles, grid, dev_n);
 			}
 		}
-
-
-		
 	}
 }
-
-
 
 __global__
 void setAValue(int base, int N, glm::mat3 * Apq, glm::vec3 * x0 , glm::vec3 * predict_x, glm::vec3 cm, glm::vec3 cm0)
@@ -821,17 +610,12 @@ void setAValue(int base, int N, glm::mat3 * Apq, glm::vec3 * x0 , glm::vec3 * pr
 
 
 __global__
-void shapeMatching(int base, int size, glm::vec3 * delta_positions, glm::vec3 * predictions, glm::vec3 *x0, glm::vec3 cm0, glm::vec3 cm, glm::mat3 * dev_Apq_ptr, int * dev_n){
+void shapeMatching(int base, int size, glm::vec3 * delta_positions, glm::vec3 * predictions, glm::vec3 *x0, glm::vec3 cm0, glm::vec3 cm, glm::mat3 Apq, int * dev_n){
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadId < size){
 		threadId += base;
 
-		glm::mat3 Apq(0.0f), R(0.0f), ROOT(0.0f);
-
-		// TODO extract to one single pre-calculation (as it was before)
-		for (int i = 0; i < size; i++){
-			Apq += dev_Apq_ptr[i];
-		}
+		glm::mat3 R(0.0f), ROOT(0.0f);
 
 		glm::mat3 A = glm::transpose(Apq)*Apq;
 
@@ -874,8 +658,9 @@ void applyDeltaForCM(glm::vec3 * predictions, const glm::vec3 * delta, const int
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
 	if (threadId < num_particles){
 		// Average and update
-		float nd = n[threadId + base] == 0 ? 1.0 : (float)n[threadId + base];
-		predictions[threadId] += delta[threadId + base] / nd;
+		int offset = threadId + base;
+		float nd = n[offset] == 0 ? 1.0 : (float)n[offset];
+		predictions[threadId] += delta[offset] / nd;
 	}
 }
 
@@ -887,18 +672,19 @@ void updatePositionFloatArray(int N, glm::vec3 * predictions, Particle * particl
 
 	if (threadId < N)
 	{
+		glm::vec3 delta_d = predictions[threadId] - particles[threadId].x;
 		// Update velocity
-		particles[threadId].v = (predictions[threadId] - particles[threadId].x) / delta_t;
+		particles[threadId].v = delta_d / delta_t;
 
 		// Particle sleeping
 		// Truncate super small values so avoid if-statement
 		if (particles[threadId].type == SOLID)
 		{
-			particles[threadId].x = particles[threadId].x + glm::trunc((predictions[threadId] - particles[threadId].x)*SPLEEFING_COFF) / SPLEEFING_COFF;
+			particles[threadId].x = particles[threadId].x + glm::trunc(delta_d*SPLEEFING_COFF) / SPLEEFING_COFF;
 		}
 		else
 		{
-			particles[threadId].x = particles[threadId].x + (predictions[threadId] - particles[threadId].x);
+			particles[threadId].x = particles[threadId].x + delta_d;
 		}
 
 		// Update positions
@@ -933,19 +719,21 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 	//updateVoxelIndexBefore << <blockCountr, blockSizer >> >(num_particles, grid_resolution, grid_min_x, grid_length, dev_positions, dev_grid, dev_particle_voxel_id);
 	checkCUDAError("ERROR: updateVoxelIndex");
 
+	const int blockSizer2 = 128;
+
 	//detect collisions and generate collision constraints
 	//for fluid, get density and constraints
-	handleCollision << <blockCountr, blockSizer >> >(num_particles, num_voxel, grid_length * 0.99f, grid_resolution, dev_lambda,//dev_mutex,
+	handleCollision << <blockCountr, blockSizer >> >(num_particles, num_voxel, grid_length * 0.99f, dev_loopIdx_fluid, loopSize_fluid, dev_loopIdx_hit, loopSize_hit, dev_lambda,//dev_mutex,
 		dev_predictPosition, dev_deltaPosition, dev_particles, dev_grid, dev_particle_voxel_id, delta_t, dev_n);
 	checkCUDAError("ERROR: handle collision");
 
-	cudaDeviceSynchronize();
-
-	FluidApplyLambdaDelta << <blockCountr, blockSizer >> >(num_particles, num_voxel, grid_length * 0.99f, grid_resolution, dev_lambda,//dev_mutex,
+	//cudaDeviceSynchronize();
+	
+	FluidApplyLambdaDelta << <blockCountr, blockSizer >> >(num_particles, num_voxel, grid_length * 0.99f, dev_loopIdx_fluid, loopSize_fluid, dev_lambda,//dev_mutex,
 		dev_predictPosition, dev_deltaPosition, dev_particles, dev_grid, dev_particle_voxel_id, delta_t, dev_n);
 	checkCUDAError("ERROR: handle collision");
-
-	cudaDeviceSynchronize();
+	
+	//cudaDeviceSynchronize();
 
 	//---- Shape matching constraint --------
 	int base = 0;
@@ -954,6 +742,7 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 		ParticleType body_type = rigidBody[i].getType();
 		int size = rigidBody[i].m_particles.size();
 		dim3 blockCountrPerRigidBody((size + blockSizer - 1) / blockSizer);
+		dim3 blockCountrPerRigidBody2((size + blockSizer2 - 1) / blockSizer2);
 
 		//generate constraints
 		if (body_type == SOLID)
@@ -990,9 +779,11 @@ void simulate(const glm::vec3 forces, const float delta_t, float * opengl_buffer
 			setAValue << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_Apq_ptr, dev_particle_x0, dev_predictPosition,
 				cm, hst_cm0[i]);
 
+			glm::mat3 Apq = thrust::reduce(dev_Apq.begin(), dev_Apq.end(), glm::mat3(0.0), thrust::plus<glm::mat3>());
+
 			//modify predict positions
 			// Also find A and R within the kernel
-			shapeMatching << <blockCountrPerRigidBody, blockSizer >> >(base, size, dev_deltaPosition, dev_predictPosition, dev_particle_x0, hst_cm0[i], cm, dev_Apq_ptr, dev_n);
+			shapeMatching << <blockCountrPerRigidBody2, blockSizer2 >> >(base, size, dev_deltaPosition, dev_predictPosition, dev_particle_x0, hst_cm0[i], cm, Apq, dev_n);
 
 		}
 		
