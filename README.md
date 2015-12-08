@@ -83,6 +83,11 @@ Preprocessing → Simulation → Vertex Shader (→ Geometry Shader / Meshing �
 	![](img/milestone3-1.png)
 	
 	![](img/milestone3-3.png)
+
+* 12/7 Milestone 3, Fluid Debug (dirty) & optimization
+	* https://docs.google.com/presentation/d/1Fz22_-5cNkKcdmKvkFU1XlUkZOABJLExdBBK6ca5ImA/edit?usp=sharing
+	
+	![](img/milestone4.png)
 	
 #### Draft
 * Preprocessing efficiency
