@@ -67,6 +67,15 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 	* Denman–Beavers iteration is finally used for finding matrix square root in that it's numerically stable, and converges very fast
 	* Fluid simulation now is not able to reach a stable state, numerical stability is one potential reason. 
 * Different particle sampling resolution
+	* Sampling resolution has a magnificent impact on the performance, since the complexity is O(n^3) for the resolution on one axis.
+	* A doubled grid length will lead to a considerable improvement on the performance, meanwhile keep the simulation result at the same level.
+	
+	![](img/sampling_res_fps.png)
+	
+	|high resolution (grid length = 0.27f) | low resoultion (grid length = 0.5f) |
+	|--------------------------| --------------------|
+	|![](img/rigid_high_resolution.png) |![](img/rigid_low_resolution.png) |
+	 
 * Global vs Tile­based collision detection, ray cast, etc.
 * Time spent on different pipeline: rendering / simulation ...
 
