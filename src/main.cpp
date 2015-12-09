@@ -16,7 +16,7 @@
 #define GRID_LENGTH_DEFAULT (0.273438f)
 
 //#define OBJ_ARR_SIZE 9
-#define OBJ_ARR_SIZE 6
+#define OBJ_ARR_SIZE 3
 
 #define GRAVITY (glm::vec3(0.0f,-9.8f,0.0f))
 #define FPS 60.0f
