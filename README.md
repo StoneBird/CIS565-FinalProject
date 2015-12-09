@@ -5,7 +5,7 @@ Unifided Real­time Particle Simulation Engine
 
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Final Project**
 
-* Tongbo Sui (Stonebird), Shuai Shao (shrekshao)
+* [Tongbo Sui (Stonebird)](https://www.linkedin.com/in/tongbosui), [Shuai Shao (shrekshao)](https://www.linkedin.com/in/shuai-shao-3718818b)
 
 ### Draft
 ### Overview
@@ -37,7 +37,10 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 		* Collision happens for each pair of particles in the local context (voxel grid) where the two particles overlap
 		* Adjustments are made for these collisions based on how deep these overlaps are
 		* All adjustments are averaged to produce the final adjustment value for collision
-	3. Retarget fluid particles {1}{5}
+	3. Retarget fluid particles {1}{5}{7}
+		* Use incompressible density as the extra constraint for the fluid particle
+		* Poly6 Smooth Kernel is used to calculate density at each point, Spiky Smooth Kernel is used for the gradients
+		* Calculate lambda for each fluid particle, 
 	4. Shape matching {1}{2}
 		* Retarget particles for rigid bodies
 		* Matching constraint is based on the fact that rigid bodies maintain their original shapes
@@ -62,6 +65,7 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 	* SVD method seems to be very straight-forward, and can avoid calculating matrix square roots. However, the decomposed matrices are badly conditioned
 	* The more stable way is to follow the general method where a matrix square root is calculated first. However, the Jacobi method for approximating matrix square root is numerically unstable, and would cause overflows after several iterations of the entire simulation. It is also very easy for Jacobi to fail on converging to a final result
 	* Denman–Beavers iteration is finally used for finding matrix square root in that it's numerically stable, and converges very fast
+	* Fluid simulation now is not able to reach a stable state, numerical stability is one potential reason. 
 * Different particle sampling resolution
 * Global vs Tile­based collision detection, ray cast, etc.
 * Time spent on different pipeline: rendering / simulation ...
@@ -98,11 +102,13 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 * {5} Fluid particle simulation, GPU Gems 3 [page](https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch30.html)
 * {6} Polar decomposition, Wikipedia [page](https://en.wikipedia.org/wiki/Polar_decomposition)
 * {7} Matrix square root, Wikipedia [page](https://en.wikipedia.org/wiki/Square_root_of_a_matrix)
-* OpenGL for rendering (?)
+* {8} Müller, Matthias, "Position Based Fluids." ACM Transactions on Graphics (TOG) 32
+* {9} OpenGL Point Sprite Rendering [link](http://mmmovania.blogspot.com/2011/01/point-sprites-as-spheres-in-opengl33.html)
+* {10} VanVerth Fluid Techniques [pdf](http://www.essentialmath.com/GDC2012/GDC2012_JMV_Fluids.pdf)
 
 ### Utils
 * {A} Tinyobjloader [repo](https://github.com/syoyo/tinyobjloader)
-* Eigen (did we use it?)
+
 
 ### By midnight Thursday 12/10:
 * Push the following to GitHub
@@ -110,10 +116,10 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 	* Final code - should be clean, documented, and tested.
 * A detailed README.md including:
 	* ~~Name of your project~~
-	* ~~Your names~~ and links to your website/LinkedIn/twitter/whatever
+	* ~~Your names and links to your website/LinkedIn/twitter/whatever~~ 
 	* Choice screenshots including debug views
 	* Link to demo if possible. WebGL demos should include your names and a link back to your github repo.
-	* ~~Overview of technique~~ and links to references
+	* ~~Overview of technique and links to references~~
 	* Link to video: two to four minutes in length to show off your work. Your video should complement your paper and clarify anything that is difficult to describe in just words and images. Your video should both make us excited about your work and help us if we were to implement it.
 	* Detailed performance analysis
 	* ~~Install and build instructions~~
@@ -147,8 +153,8 @@ Preprocessing → Simulation → Vertex Shader (→ Geometry Shader / Meshing �
 #### Milestone Plan
 
 * 11/16 Preprocessing, vertex shader, fragment shader (sphere ray marching)
-* 11/23 Simulation (solvers)
-* 11/30 Simulation (solvers)
+* 11/23 Simulation (solvers) Rigid Body
+* 11/30 Simulation (solvers) Fluid
 * 12/07 Simulation (solvers) / Meshing
 	
 #### Presentation
