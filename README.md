@@ -54,6 +54,7 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 	6. Update particle information based on the final values
 3. Render
 	* Particle rendering is accomplished with OpenGL built-in features
+	* Render each particle as a point sprite, using the fragment shader to compute the distance to the center and get normal from texture coordinates to draw a sphere like point without using any actual geometry model
 
 ### Performance
 * Preprocessing efficiency
@@ -164,7 +165,7 @@ Preprocessing → Simulation → Vertex Shader (→ Geometry Shader / Meshing �
 * 11/16 Preprocessing, vertex shader, fragment shader (sphere ray marching)
 * 11/23 Simulation (solvers) Rigid Body
 * 11/30 Simulation (solvers) Fluid
-* 12/07 Simulation (solvers) / Meshing
+* 12/07 Simulation (solvers) / ~~Meshing~~
 	
 #### Presentation
 
