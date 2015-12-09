@@ -10,7 +10,7 @@
 
 //CUDA-accelerated particle sampling of rigid body obj models
 
-#define NUM_PARTICLE_VOXEL (8)
+#define NUM_PARTICLE_VOXEL (4)
 
 struct Voxel
 {
