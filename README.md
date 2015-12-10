@@ -11,7 +11,7 @@ Unifided Real­time Particle Simulation Engine
 A real­time particle simulation engine implemented with CUDA. The engine includes basic particle sampling, rigid body and fluid (liquid) interaction simulations.
 
 ### Demo video
-![https://youtu.be/y96n1sFAvuQ](img/vid_demo.png)
+[![](img/vid_demo.png)](https://youtu.be/y96n1sFAvuQ)
 
 ### Installation and run
 * Installation
