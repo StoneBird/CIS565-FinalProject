@@ -130,21 +130,6 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 ### Utils
 * {A} Tinyobjloader [repo](https://github.com/syoyo/tinyobjloader)
 
-
-### By midnight Thursday 12/10:
-* Push the following to GitHub
-	* Final presentation slides
-	* Final code - should be clean, documented, and tested.
-* A detailed README.md including:
-	* ~~Name of your project~~
-	* ~~Your names and links to your website/LinkedIn/twitter/whatever~~ 
-	* ~~Choice screenshots including debug views~~
-	* ~~Link to demo if possible. WebGL demos should include your names and a link back to your github repo.~~
-	* ~~Overview of technique and links to references~~
-	* ~~Link to video: two to four minutes in length to show off your work. Your video should complement your paper and clarify anything that is difficult to describe in just words and images. Your video should both make us excited about your work and help us if we were to implement it.~~
-	* ~~Detailed performance analysis~~
-	* ~~Install and build instructions~~
-
 ### Original Project Pitch
 #### Overview
 
