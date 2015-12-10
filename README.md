@@ -7,11 +7,11 @@ Unifided Real­time Particle Simulation Engine
 
 * [Tongbo Sui (Stonebird)](https://www.linkedin.com/in/tongbosui), [Shuai Shao (shrekshao)](https://www.linkedin.com/in/shuai-shao-3718818b)
 
-### Draft
 ### Overview
 A real­time particle simulation engine implemented with CUDA. The engine includes basic particle sampling, rigid body and fluid (liquid) interaction simulations.
 
 ### Demo video
+![](img/vid_demo.png)
 
 ### Installation and run
 * Installation
@@ -37,7 +37,7 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 		* Collision happens for each pair of particles in the local context (voxel grid) where the two particles overlap
 		* Adjustments are made for these collisions based on how deep these overlaps are
 		* All adjustments are averaged to produce the final adjustment value for collision
-	3. Retarget fluid particles {1}{5}{7}
+	3. Retarget fluid particles {1}{5}{7}{8}{10}
 		* Use incompressible density as the extra constraint for the fluid particle
 		* Poly6 Smooth Kernel is used to calculate density at each point, Spiky Smooth Kernel is used for the gradients
 		* Calculate lambda for each fluid particle, 
@@ -52,7 +52,7 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 		* Adjustments due to collision and retargeting are summed and averaged to produce the final adjustments
 		* Original prediction value is adjusted based on the final values, and velocities are calculated
 	6. Update particle information based on the final values
-3. Render
+3. Render {9}
 	* Particle rendering is accomplished with OpenGL built-in features
 	* Render each particle as a point sprite, using the fragment shader to compute the distance to the center and get normal from texture coordinates to draw a sphere like point without using any actual geometry model
 
@@ -77,8 +77,19 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 	|--------------------------| --------------------|
 	|![](img/rigid_high_resolution.png) |![](img/rigid_low_resolution.png) |
 	 
-* Global vs Tile­based collision detection, ray cast, etc.
-* Time spent on different pipeline: rendering / simulation ...
+* Global vs Voxel­based collision detection
+	* For a standard test scene, the number of particles often goes up to 10,000+. It is obvious that the shorter collision test is, the better
+	* For global collision tests, the complexity is stable at average case `O(n^2)` per thread. For a typical scene, this would render a loop size of 100,000,000+, which is infeasibly slow
+	* One assumption can be given to the collision test that particles that are too far away must not be colliding. Therefore we can check only locally, reducing greatly the computatino complexity from polynomial to almost constant
+	* Given the assumption above, particles are indexed into voxels, and for each particle during collision test, it will only test against those inside adjacent voxels. Each voxel has a fixed size, which in turn guarantees that collision test loop size will not exceed a constant
+	* This effectively reduces loop size from 100,000,000+ to 150+
+* Time spent on different pipeline stages
+	* The most time-consuming parts are collision test and fluid retargeting. Both needs to serially check surrounding particles for information updates
+	* As mentioned below, it is theoretically possible to parallelize these processes to increase overall performance. Preliminary trials showed a potential of ~70% execution time reduction (3.3x speedup) when local tests are parallelized
+
+	|Time spent on different pipeline stages |
+	|--------------------------|
+	|![](img/pipe_time.png) |
 
 ### Optimization
 * Occupacy
@@ -127,11 +138,11 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 * A detailed README.md including:
 	* ~~Name of your project~~
 	* ~~Your names and links to your website/LinkedIn/twitter/whatever~~ 
-	* Choice screenshots including debug views
-	* Link to demo if possible. WebGL demos should include your names and a link back to your github repo.
+	* ~~Choice screenshots including debug views~~
+	* ~~Link to demo if possible. WebGL demos should include your names and a link back to your github repo.~~
 	* ~~Overview of technique and links to references~~
-	* Link to video: two to four minutes in length to show off your work. Your video should complement your paper and clarify anything that is difficult to describe in just words and images. Your video should both make us excited about your work and help us if we were to implement it.
-	* Detailed performance analysis
+	* ~~Link to video: two to four minutes in length to show off your work. Your video should complement your paper and clarify anything that is difficult to describe in just words and images. Your video should both make us excited about your work and help us if we were to implement it.~~
+	* ~~Detailed performance analysis~~
 	* ~~Install and build instructions~~
 
 ### Original Project Pitch
