@@ -110,12 +110,14 @@ void samplingFree()
 * Sampling routine
 **************************************************************************************/
 
+// Map screen pixel coord to center-origin based coord
 __device__
 void coordRemap(int &x, int &y, const glm::vec3 resolution){
 	x = x - resolution.x / 2;
 	y = resolution.y / 2 - y;
 }
 
+// Intersection test
 __global__
 void intersect(RayPeel * rp, Triangle * tri, const int tri_count, const glm::vec3 resolution, const float diameter, const glm::vec3 ray){
 	int x = blockDim.x * blockIdx.x + threadIdx.x;
@@ -153,6 +155,7 @@ void intersect(RayPeel * rp, Triangle * tri, const int tri_count, const glm::vec
 	}
 }
 
+// Fill particles between two depths
 __global__
 void fillPeel(ParticleWrapper * p_out, RayPeel * rp, const glm::vec3 resolution, const float diameter){
 	int x = blockDim.x * blockIdx.x + threadIdx.x;
@@ -172,6 +175,7 @@ void fillPeel(ParticleWrapper * p_out, RayPeel * rp, const glm::vec3 resolution,
 	}
 }
 
+// Particle information copying
 __global__
 void transformParticle(float *pos_out, Particle *p_out, ParticleWrapper *p_in, int size, 
 			const glm::mat4 mat, const glm::vec3 body_init_velocity, const float body_mass_scale, 

@@ -37,6 +37,7 @@ static int * dev_n;
 
 static float * dev_positions;
 
+// Pre-calculated local hit test loop indices
 static int loopSize_fluid = (NEIGHBOUR_R * 2 + 1)*(NEIGHBOUR_R * 2 + 1)*(NEIGHBOUR_R * 2 + 1);
 static int loopSize_hit = (HITTEST_R * 2 + 1)*(HITTEST_R * 2 + 1)*(HITTEST_R * 2 + 1);
 static int * dev_loopIdx_fluid;
@@ -75,7 +76,7 @@ __constant__ static glm::vec3* dev_particle_x0;
 //	initUniformGrid(bmin, bmax, particle_diameter);
 //}
 
-
+// Particle transformation
 __global__
 void transformParticlePositionPerRigidBody(int base,int size, Particle * particles, glm::vec3* x0,glm::mat4 mat){
 	int threadId = blockDim.x * blockIdx.x + threadIdx.x;
@@ -93,7 +94,7 @@ void transformParticlePositionPerRigidBody(int base,int size, Particle * particl
 }
 
 
-
+// Initial assembly of information
 void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 {
 	hst_cm0 = new glm::vec3[num_rigidBody];
@@ -160,6 +161,7 @@ void assembleParticleArray(int num_rigidBody, RigidBody * rigidbodys)
 	checkCUDAError("ERROR: assemble particle array");
 }
 
+// Initialize hit test loop indices
 __global__
 void initTestLoopIdx(int * fluidLoop, int * hitLoop, const glm::ivec3 resolution){
 	int x, y, z, idSum2, idSum3, yTimesZ = resolution.y * resolution.z, j = 0;
@@ -193,6 +195,7 @@ void initTestLoopIdx(int * fluidLoop, int * hitLoop, const glm::ivec3 resolution
 	}
 }
 
+// Initialize voxel grid
 void initUniformGrid(glm::vec3 bmin, glm::vec3 bmax, float diameter)
 {
 	//init size
@@ -290,9 +293,7 @@ void updateVoxelIndex(int N , glm::ivec3 grid_resolution, glm::vec3 min_x, float
 	}
 }
 
-
-
-
+// Prediction using simple force-based translation
 __global__
 void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, const glm::vec3 forces, const float delta_t)
 {
@@ -308,7 +309,7 @@ void kernApplyForces(int N, Particle * particles, glm::vec3 * predictPosition, c
 	}
 }
 
-
+// Particle hit test for a single particle
 __device__
 void hitTestVoxelSolid(const int num_voxel, const float diameter, const int particle_id, const int particlePhase, const float particleInvmass, const glm::vec3 particlePos,
 const int voxel_id, const glm::vec3 * predict_positions, glm::vec3 * delta_positions,
@@ -349,8 +350,6 @@ const int voxel_id, const glm::vec3 * predict_positions, glm::vec3 * delta_posit
 	delta_positions[particle_id] += delta_pos;
 	dev_n[particle_id] += n;
 }
-
-
 
 // ------------------fluid---------------------
 __device__
@@ -446,8 +445,6 @@ Particle * particles, Voxel * grid, int * dev_n)
 	return density;
 }
 
-
-
 __device__
 void fluidNeighbourEnforce(float* lambda, //int * mutex,
 int num_voxel, float diameter, float H, float oneOverRho, int particle_id, glm::vec3 particlePos, float particleLambda, int voxel_id, glm::vec3 * predict_positions, glm::vec3 * delta_positions,
@@ -490,19 +487,9 @@ Particle * particles, Voxel * grid, int * dev_n)
 	
 }
 
-
-
 //---------------------------------------------
 
-
-
-
-
-
-
-
-
-//Handle Constraints
+// Collision constraints handler
 __global__
 void handleCollision(int N, int num_voxel, float diameter, int * fluidLoop, int fluidLoopSize, int * hitLoop, int hitLoopSize, float* lambda,//int * mutex,
 	 glm::vec3 * predictPositions, glm::vec3 * deltaPositions, Particle * particles,Voxel * grid, int * ids, float delta_t, int * dev_n)
@@ -562,7 +549,7 @@ void handleCollision(int N, int num_voxel, float diameter, int * fluidLoop, int 
 	}
 }
 
-//fluid apply delta
+// fluid apply delta; retargeting
 __global__
 void FluidApplyLambdaDelta(int N, int num_voxel, float diameter, int * fluidLoop, int loopSize, float* lambda,//int * mutex,
 glm::vec3 * predictPositions, glm::vec3 * deltaPositions, Particle * particles, Voxel * grid, int * ids, float delta_t, int * dev_n)
@@ -594,6 +581,7 @@ glm::vec3 * predictPositions, glm::vec3 * deltaPositions, Particle * particles, 
 	}
 }
 
+// Shape matching matrix A components
 __global__
 void setAValue(int base, int N, glm::mat3 * Apq, glm::vec3 * x0 , glm::vec3 * predict_x, glm::vec3 cm, glm::vec3 cm0)
 {
@@ -651,6 +639,7 @@ void applyDelta(glm::vec3 * predictions, const glm::vec3 * delta, const int * n,
 	}
 }
 
+// Only need for center-of-mass calculation
 __global__
 void applyDeltaForCM(glm::vec3 * predictions, const glm::vec3 * delta, const int * n, const int num_particles, int base){
 	//for one rigid body
