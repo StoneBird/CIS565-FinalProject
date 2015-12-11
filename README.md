@@ -10,6 +10,8 @@ Unifided Real­time Particle Simulation Engine
 ### Overview
 A real­time particle simulation engine implemented with CUDA. The engine includes basic particle sampling, rigid body and fluid (liquid) interaction simulations.
 
+* [slides](https://docs.google.com/presentation/d/1elaQLY8H8leIeWQ5LmkWcoFk5igO2OZbxhGEMvGc6X0/edit?usp=sharing)
+
 ### Demo video
 [![](img/vid_demo.png)](https://youtu.be/y96n1sFAvuQ)
 
@@ -24,6 +26,7 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 * Run
 	* Run with `./path-to-exe ../objs/suzanne.obj ../objs/sink.obj`
 	* `objs` folder is in the top-level folder of the codebase. Please double check the relative path before running
+	* `LMB`: rotate, `RMB`: translate, `Scroll`: zoom in/out
 
 ### Pipeline
 1. Preprocessing
@@ -40,7 +43,8 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 	3. Retarget fluid particles {1}{5}{7}{8}{10}
 		* Use incompressible density as the extra constraint for the fluid particle
 		* Poly6 Smooth Kernel is used to calculate density at each point, Spiky Smooth Kernel is used for the gradients
-		* Calculate lambda for each fluid particle, 
+		* Calculate lambda for each fluid particle
+		* Apply incompressibility delta to predict positions
 	4. Shape matching {1}{2}
 		* Retarget particles for rigid bodies
 		* Matching constraint is based on the fact that rigid bodies maintain their original shapes
@@ -68,7 +72,7 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 	* Denman–Beavers iteration is finally used for finding matrix square root in that it's numerically stable, and converges very fast
 	* Fluid simulation now is not able to reach a stable state, numerical stability is one potential reason. 
 * Different particle sampling resolution
-	* Sampling resolution has a magnificent impact on the performance, since the complexity is O(n^3) for the resolution on one axis.
+	* Sampling resolution has a magnificent impact on the performance, since the complexity is `O(n^3)` for the resolution on one axis.
 	* A doubled grid length will lead to a considerable improvement on the performance, meanwhile keep the simulation result at the same level.
 	
 	![](img/sampling_res_fps.png)
@@ -76,7 +80,11 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 	|high resolution (grid length = 0.27f) | low resoultion (grid length = 0.5f) |
 	|--------------------------| --------------------|
 	|![](img/rigid_high_resolution.png) |![](img/rigid_low_resolution.png) |
-	 
+	
+* Number of Rigid Bodies
+	* Shape matching is done sequentially for each rigid body
+	* With same number of particles, simulation slows down as number of rigid body increases
+	
 * Global vs Voxel­based collision detection
 	* For a standard test scene, the number of particles often goes up to 10,000+. It is obvious that the shorter collision test is, the better
 	* For global collision tests, the complexity is stable at average case `O(n^2)` per thread. For a typical scene, this would render a loop size of 100,000,000+, which is infeasibly slow
@@ -90,9 +98,15 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 	|Time spent on different pipeline stages |
 	|--------------------------|
 	|![](img/pipe_time.png) |
+* Fluid stablizing
+	* We are now unable to achieve a stablized fluid simulation due to time limitation
+	* Possible reasons we can further look into are
+		* numerical stability
+		* scale sensibility
+		* successive over-relaxation parameter
 
 ### Optimization
-* Occupacy
+* Occupancy
 	* Explicitly reuse variables and optimize the computation flow to reduce # of registers used for kernels. Changing of computation flow should not add extra computations
 	* Less registers gives more space to add more warps. By optimizing block size based on profiler statistics, it's possible to increase occupacy, and reduce kernel execution time
 	* The part that get the most benefit is memory access, where having more warps allow more hiding of such delays
@@ -106,8 +120,8 @@ A real­time particle simulation engine implemented with CUDA. The engine includ
 	* Replace such access by creating variables outside loops to cache the values to be used repetitively inside loops. This will eliminate memory throttling and reduce memory dependency by a large amount (~10%)
 	* ~10% reduction on execution time
 * Flatten loops into separate threads, or kernel within kernel
-	* For each particle, the collision test requires checking locally all particles arount it. This involves huge loops inside kernel for each thread
-	* It is theoretically possible to break the loops into seperate threads. This would require stable concurrent updates to same memory locations
+	* For each particle, the collision test requires checking locally all particles around it. This involves huge loops inside kernel for each thread
+	* It is theoretically possible to break the loops into separate threads. This would require stable concurrent updates to same memory locations
 		* Locking: locking is extremely slow. It's not hard to imagine the reason why it's slow given the # of particles
 		* Atomic operations: faster than locking but still super slow. After all, it involves some hardware locks that decreases performances
 	* One possible way to do this is to break into two steps
