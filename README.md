@@ -1,6 +1,6 @@
 ![](img/milestone4.png)
 
-Unifided Real­time Particle Simulation Engine
+Unified Real­time Particle Simulation Engine
 ===============
 
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Final Project**
